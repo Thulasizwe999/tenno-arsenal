@@ -40,3 +40,18 @@ The public `progression.js` module extends the existing `World & story` screen w
 Game progress is stored within the same **private browser profile** as equipment and mods; no replacement import is necessary if an existing full profile is already loaded. JSON backups include the added fields. Personal progress is not committed to this public repository.
 
 **Accuracy:** historical planet checkmarks do *not* imply all missions are done. The source workbook has no Focus/shard/quest specifics; their initial status is unknown, not zero/incomplete. The external node list can contain incomplete or outdated community names; use the game as authority. Equipment catalogues and mission-node names have refresh features; the quest and Focus reference lists are currently maintained in the app code, not synchronized from PlayStation.
+
+
+## Syndicates & game-mode progress (November 2026)
+
+Within **World & story**, the following additional tabs are available:
+
+- **Syndicates:** 20 currently trackable factions (six Relay, ten Open-world, four Specialist), with per-faction rank, Standing/resource progress, pledge, next target and notes. Includes Nightcap's Field Guide rank/mushroom count, which does not use normal Standing. Supports adding custom/future factions.
+- **Game modes:** 40 missions, weekly endgame activities, Duviri variants, open-world bounties, adversaries, Nightwave, the 1999 Calendar, Railjack, collection systems, and optional modes. Progress is manually marked unknown/locked/available/in progress/completed, with optional numeric count and a farming goal. Only actionable entries become session-plan tasks. Repeatable entries never auto-reset, preventing misleading completion status.
+- **1999 KIM:** chemistry notes and next goals for the six original Hex members, with custom contacts.
+
+**Current as of 24 November 2026:** The Icebind released on 7 October 2026 and can be tracked. Warframe: Tau and **The Cleaving Glaive** Syndicate were announced for December 2026 and are deliberately *not* marked playable. Future Syndicate/mode names are a manually maintained reference list; unlike the item catalogue, this list does not auto-sync to every game release.
+
+For factual context, see Digital Extremes' [Syndicates support guide](https://support.warframe.com/hc/en-us/articles/38802406697229-Syndicates), [The Vallis Undermind notes](https://www.warframe.com/en/patch-notes/ios/40-0-0), [The Icebind update](https://www.warframe.com/en/patch-notes/psn/44-1-0) and [Devstream 198](https://www.warframe.com/en/news/198).
+
+The public repository contains reference lists and UI code only; **no personal ranks, Standing, mushroom counts, Hex chemistry or mission completion data**.
