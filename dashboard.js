@@ -19,7 +19,7 @@ const D_AREAS=[
 ];
 const D_DAILY=['Sortie','Steel Path Incursions'];
 const D_WEEKLY=['Archon Hunt','Netracells','Deep Archimedea','Temporal Archimedea','Normal Circuit','Steel Path Circuit','Kahl weekly mission','Höllvania 1999 Calendar','Descendia'];
-const D_UI={showAll:false,weeklyAll:false,priorityAll:false,quickFilter:'All'};
+const D_UI={showAll:false,weeklyAll:false,priorityAll:false,quickFilter:'All',reference:'syndicates'};
 function dModel(){
  const g=sModel();
  g.dashboard ||= {};
@@ -147,6 +147,42 @@ function dPriorities(g){
  }
  s+='</div><div class="dShow"><button class="button small" data-d-expand="priority">'+(D_UI.priorityAll?'Show top eight':'Show more actions')+'</button></div></section>';return s;
 }
+function dQuickReference(g,c){
+ const tabs=[['syndicates','Syndicates'],['focus','Focus'],['intrinsics','Intrinsics'],['shards','Shards']];
+ let s='<section class="panel dSection"><div class="editline"><div><h2>Quick-reference values</h2><p class="muted tiny">Your last saved numbers, so you do not need to visit each in-game menu just to remember them.</p></div></div>';
+ s+='<div class="dRefTabs">'+tabs.map(([key,text])=>'<button class="button small '+(D_UI.reference===key?'gold':'ghost')+'" data-d-ref="'+key+'">'+text+'</button>').join('')+'</div>';
+ let to='syndicates';
+ if(D_UI.reference==='syndicates'){
+  const entries=[...S_SYNDICATES.map(x=>x[0]),...(g.syndicates.custom||[])].map(name=>({name,...(g.syndicates.members[name]||{})}));
+  entries.sort((a,b)=>(dRecorded(b.rank)||dRecorded(b.standing)?1:0)-(dRecorded(a.rank)||dRecorded(a.standing)?1:0)||a.name.localeCompare(b.name));
+  const have=entries.filter(x=>dRecorded(x.rank)||dRecorded(x.standing));
+  s+='<p class="muted tiny">'+have.length+' of '+entries.length+' factions have saved values. Showing recorded factions first.</p><div class="dRefRows">';
+  for(const x of (have.length?have.slice(0,10):entries.slice(0,6))){
+   s+='<div class="dRefRow"><strong>'+h(x.name)+'</strong><span>Rank '+(dRecorded(x.rank)?h(x.rank):'—')+'</span><span>'+ (x.name==='Nightcap'?'Analysed ':'Standing ')+(dRecorded(x.standing)?h(x.standing):'—')+'</span></div>';
+  }
+  s+='</div>';to='syndicates';
+ }else if(D_UI.reference==='focus'){
+  s+='<div class="dRefRows">';
+  for(const name of P_SCHOOLS){const f=g.focus[name]||{},count=Object.values(f.nodes||{}).filter(x=>x&&dRecorded(x.rank)).length;const unlock=f.unlocked===null||f.unlocked===undefined?'Unknown':f.unlocked?'Unlocked':'Locked';
+   s+='<div class="dRefRow"><strong>'+h(name)+'</strong><span>'+h(unlock)+'</span><span>'+count+' nodes ranked</span><span>'+ (dRecorded(f.available)?number(f.available).toLocaleString()+' unspent Focus':'Unspent —')+'</span></div>';
+  }
+  s+='</div>';to='focus';
+ }else if(D_UI.reference==='intrinsics'){
+  s+='<div class="dRefRows">';
+  for(const [type,names] of Object.entries(P_INTR))for(const name of names){const value=g.intrinsics[type]?.[name];
+   s+='<div class="dRefRow"><strong>'+h(name)+'</strong><span>'+h(type)+'</span><span>'+ (dRecorded(value)?'Rank '+h(value)+' / 10':'Not recorded')+'</span></div>';
+  }
+  s+='</div>';to='intrinsics';
+ }else if(D_UI.reference==='shards'){
+  s+='<p class="muted tiny">Spare = not installed. Installed shards are counted separately and may not correspond to spare inventory.</p><div class="dRefRows">';
+  for(const color of P_COLORS){const base=g.shards.spare[color+'|Standard'],tau=g.shards.spare[color+'|Tauforged'];const inUse=(g.shards.installed||[]).filter(x=>x.color===color).length;
+   s+='<div class="dRefRow"><strong>'+h(color)+'</strong><span>Standard '+(dRecorded(base)?h(base):'—')+'</span><span>Tau '+(dRecorded(tau)?h(tau):'—')+'</span><span>Installed '+inUse+'</span></div>';
+  }
+  s+='</div>';to='shards';
+ }
+ s+='<div class="dShow">'+dJumpButton({tab:to},'Update values')+'</div></section>';
+ return s;
+}
 function dCoverage(g,c){
  const areas=[
   {name:'Quests',v:c.questsKnown,max:c.questsTotal,href:'quests'},
@@ -186,6 +222,7 @@ function dOverview(){
  s+='</div>';
  s+='<div class="dTwo">'+dPriorities(g)+dWeekly(g)+'</div>';
  s+=dCoverage(g,c);
+ s+=dQuickReference(g,c);
  s+=dAreas(g,c);
  s+='<div class="panel dSection"><h2>What this dashboard does — and does not do</h2><p class="muted tiny">It summarises the progress you have actually saved in Tenno Arsenal. Your historical workbook data is not a live PlayStation sync. New game catalogue entries can refresh separately, but personal game activity, Standing, Focus, quests and shards require checking in Warframe or a verified import. Click <strong>Mark checked</strong> only after confirming a section in-game; this records the review date without marking content complete. Use <strong>Backup</strong> to preserve your private data before clearing browser storage or switching devices.</p></div>';
  return s;
@@ -193,8 +230,9 @@ function dOverview(){
 overview=dOverview;
 for(const nav of NAV)if(nav[0]==='overview')nav[2]='Command centre';
 document.addEventListener('click',event=>{
- const el=event.target.closest('[data-d-expand],[data-d-reviewed],[data-d-tab],[data-d-page]');
+ const el=event.target.closest('[data-d-expand],[data-d-reviewed],[data-d-tab],[data-d-page],[data-d-ref]');
  if(!el)return;
+ if(el.dataset.dRef){D_UI.reference=el.dataset.dRef;render();return;}
  if(el.dataset.dExpand){
   if(el.dataset.dExpand==='areas')D_UI.showAll=!D_UI.showAll;
   if(el.dataset.dExpand==='weekly')D_UI.weeklyAll=!D_UI.weeklyAll;
@@ -215,4 +253,5 @@ document.addEventListener('click',event=>{
 const D_STYLE=document.createElement('style');
 D_STYLE.textContent='.dSnapshot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 16px;margin:0 0 16px}.dMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}.dTwo{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:15px;margin:19px 0}.dSection{margin:18px 0}.dSection h2{margin:0}.dSection p{margin-top:8px}.dList{margin-top:14px}.dListRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.dListRow:last-child{border-bottom:0}.dListBody{min-width:0;flex:1}.dListBody strong{display:block;font-size:13px}.dListBody .muted{font-size:11px}.dListRow .button{flex:none}.dListRow .pill{white-space:nowrap}.dCov{display:grid;grid-template-columns:minmax(180px,1fr) minmax(70px,1.6fr) 67px;align-items:center;gap:12px;margin:16px 0}.dCovLabel{display:flex;flex-direction:column;gap:3px;font-size:13px}.dCovLabel strong{font-size:11px;color:var(--muted);font-weight:500}.dOpen{color:var(--cyan);border:0;background:transparent;cursor:pointer;font-size:12px}.dAreas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:16px}.dArea{display:flex;flex-direction:column;gap:9px;padding:14px;background:var(--raised);border:1px solid var(--line);border-radius:var(--r);min-width:0}.dAreaTop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dAreaIcon{width:26px;height:26px;color:var(--gold);display:grid;place-items:center;background:#111d2d;border-radius:6px}.dAreaName{font-size:13px;font-weight:700;flex:1}.dAreaTop .pill{font-size:10px}.dMain{font-size:15px;font-weight:700;letter-spacing:-.02em}.dWhere{padding:10px;border:1px dashed #394e65;border-radius:7px;font-size:12px;line-height:1.5;margin-top:auto}.dAreaFoot{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-top:5px}.dAreaControls{display:flex;gap:6px;align-items:center}.dAreaControls .button{font-size:11px;padding:6px 8px}.dShow{margin-top:12px}.dCov .progressbar{width:100%}@media(max-width:1180px){.dAreas{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:950px){.dTwo{grid-template-columns:1fr}.dMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.dAreas{grid-template-columns:1fr}.dMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dCov{grid-template-columns:minmax(0,1fr) minmax(80px,1fr) 55px;gap:6px}.dListRow{align-items:flex-start;flex-wrap:wrap}.dListRow .button{margin-left:auto}.dAreaFoot{align-items:center}}';
 document.head.append(D_STYLE);
+const D_REF_STYLE=document.createElement('style');D_REF_STYLE.textContent='.dRefTabs{display:flex;gap:7px;flex-wrap:wrap;margin:15px 0}.dRefRows{display:flex;flex-direction:column;gap:0}.dRefRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line);font-size:12px}.dRefRow strong{flex:1;min-width:135px;font-size:13px}.dRefRow span{color:var(--muted)}.dRefRow:last-child{border-bottom:0}';document.head.append(D_REF_STYLE);
 if(state.page==='overview')render();
