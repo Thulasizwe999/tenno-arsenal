@@ -111,3 +111,26 @@ Helminth summary is available under **World & story → Helminth**, with a quick
 **Quests:** the journal tracks Prologue to Tau as a single top-level Codex entry, with Lua and Vessel noted as its chapters rather than independent entries in the overall quest count. Quest statuses include `Outstanding / unfinished` so a quest can be identified as incomplete without claiming that it has never been started. A one-time quest-status merge can mark known completed quests while leaving the two identified outstanding entries clearly actionable.
 
 This repository never contains a player's private list of subsumed Warframes or completed quests.
+
+
+## Live Warframe world-state board
+
+The app's **Live world** tab (also available from the Command Centre and top bar) calls the public WarframeStatus API using the PlayStation path \`https://api.warframestat.us/ps4?language=en\`. Per the provider, console paths may redirect to the shared PC world state. This is a public, read-only mission feed and never uses PlayStation authentication.
+
+It shows:
+- **Active Void Fissures:** tier, node, mission type, Normal / Steel Path / Void Storm category and time remaining, with useful filters
+- **Alerts, operations and invasions:** current missions, reward descriptions and expiries where provided
+- **Daily Syndicate missions:** faction and public destination nodes (not account-specific availability or completion)
+- **Nightwave challenges:** live public Acts and any matching, previously tracked personal Act progress
+- **Sorties, Archon Hunts, Arbitrations, Steel Path Incursions, Deep Archimedea:** available current rotations and published countdowns
+- **Open-world cycles & Baro Ki'Teer:** public phases, trader availability and time until their next change
+
+The public feed is requested on first visit and refreshed at most every five minutes while the board is open, or immediately using **Refresh live feed**. The page displays the time of the most recent successful retrieval, warns when a refresh fails, and never fabricates a live time or available mission. Expired activities are removed from the active lists when the world state is refreshed; countdown displays update while the page is open. When the public service is unreachable, the user can open [Warframe Hub](https://hub.warframestat.us/) as an alternative.
+
+### Session shortlist and next-step recommendations
+
+Live missions can be shortlisted into the local private player profile, with mission node, source and expiry. Shortlisting is a planning tool, **not an assertion that two mission variants can be combined**.
+
+The planned **Recommendations** page will evaluate opportunities using the user's saved account goals (equipment ready to level, pinned mod/Arcane/resource farms, Nightwave Acts, Syndicate Standing, remaining mission completion, and repeatable activities), the latest live rotations and verified reward tables. It should propose multi-objective plans only when mission eligibility, variants and conditions are compatible. It will distinguish high-confidence combinations from conditional suggestions requiring an in-game check. No automatic account progress import is implied.
+
+Public API reference: https://docs.warframestat.us/ .
