@@ -228,7 +228,7 @@ function dOverview(){
    '<div class="panel"><h2>One home for the whole game</h2><p class="muted">Restore your private Tenno Arsenal profile to see mastery, quest progress, Syndicates, Focus, intrinsics, shards and a session planner here. Unrecorded data stays unknown.</p><p class="muted tiny">This public website contains no personal PlayStation data.</p></div>';
  }
  const g=dModel(),c=dRowStats(g);
- let s=title('Tenno command centre','Your recorded game progress, what to tackle next, and where to check each system in Warframe',button('Back up progress','backup','','small')+' '+button('Session planner','goto','data-target="planner"','small')+' '+button('Audit mastery','goto','data-target="mastery"','gold'));
+ let s=title('Tenno command centre','Your recorded game progress, what to tackle next, and where to check each system in Warframe',button('Back up progress','backup','','small')+' '+button('Session planner','goto','data-target="planner"','small')+' '+button('Audit mastery','goto','data-target="mastery"','small')+' '+button('◷ Live missions','goto','data-target="world"','gold'));
  s+=statusNotice();
  s+='<div class="dSnapshot"><span class="pill ok">Private profile loaded</span><span class="muted tiny">Your saved Warframe progress · local to this browser</span><span class="muted tiny">Last browser edit: '+h(dDate(state.profile.meta.lastUpdated))+'</span><span class="muted tiny">Catalogue: '+h(catalogueStatusText())+'</span></div>';
  s+='<div class="cards dMetrics">';
@@ -243,6 +243,9 @@ function dOverview(){
  for(const item of items)s+='<div class="metric"><div class="lbl">'+h(item[0])+'</div><div class="val">'+h(item[1])+'</div><div class="note">'+h(item[2])+'</div></div>';
  s+='</div>';
  s+='<div class="dTwo">'+dPriorities(g)+dWeekly(g)+'</div>';
+ const lw=typeof W_DASH!=='undefined'?W_DASH:null,validLive=lw?.snapshot&&!lw.error;
+ const stats=validLive?'<strong>'+lw.snapshot.fissures.length+' fissures · '+lw.snapshot.alerts.length+' alerts</strong> · Last fetched '+new Date(lw.fetchedAt).toLocaleTimeString():'Timers and active missions load from the public Warframe world-state service when you open the board.';
+ s+='<section class="panel dSection"><div class="editline"><div><h2>Live mission opportunities</h2><p class="muted tiny">'+stats+'</p><p class="muted tiny">Choose fissures, invasions, alerts, Nightwave and Syndicate missions, then shortlist them for your next gaming session. Personal progress stays private.</p></div>'+button('Open Live world','goto','data-target="world"','gold')+'</div></section>';
  s+=dCoverage(g,c);
  s+=dQuickReference(g,c);
  s+=dAuditRoute(g);
