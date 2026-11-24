@@ -89,3 +89,16 @@ The public mission list includes WFCD entries and official 2026 Uranus Proxima m
 The importer validates the XP breakdown, displays a before/after review, downloads a private backup, and merges only the specified values. A unique capture ID prevents importing the same in-game snapshot twice and overwriting later manual changes. Other progress, including Companion inventory, is retained.
 
 **Do not commit player-profile screenshots, mastery totals, Focus balances or progress JSON to this public repository.** Personal data is stored only in the browser's private profile and its local backups.
+
+
+## Incremental in-game confirmations
+
+The verified-update importer also accepts a **small, one-time gameProgressDelta** file for selected progression information without requiring a new full account snapshot:
+
+- **Drifter or Railjack Intrinsics**: only explicitly confirmed individual track ranks, plus unspent points
+- **Quest journal**: individual Codex quest status, including newly added quests; unseen quests are unchanged
+- **Helminth metamorphosis**: rank/level, current XP, next threshold and aggregate unlocked-ability count; this never pretends to know which individual abilities were unlocked
+
+All changes appear in the preview before applying, and a private backup is downloaded first. Previously imported mastery, mission statuses, shards, Arcanes, equipment, Mods, Syndicates and notes remain intact. Each verified update has a unique capture ID and is a no-op on subsequent imports, preventing the same screenshot from overwriting later manual edits.
+
+Helminth summary is available under **World & story → Helminth**, with a quick-reference tab on the Command Centre. The app's public code contains no player's personal Helminth, quest or Intrinsics values.
