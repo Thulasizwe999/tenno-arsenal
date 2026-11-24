@@ -183,6 +183,15 @@ function masteryPage(){
  }
  s+='</tbody></table></div>';}
  s+='</section>';
+ const ownedUnfinished=x.all.filter(item=>item.owned&&!item.mastered&&mRankInfo(item).cap>0);
+ if(ownedUnfinished.length){
+  s+='<section class="panel"><h2>Owned equipment still gaining mastery</h2><p class="muted tiny">Record the highest earned rank, even if Forma has since reset the current rank. Blank counts as unverified.</p><div class="tablewrap"><table class="data"><thead><tr><th>Equipment</th><th>Earned rank</th><th>XP counted</th><th>XP remaining</th></tr></thead><tbody>';
+  for(const item of ownedUnfinished){
+   const calc=mItemEarned(item,x.all),rule=calc.rule,options=[['','Unverified'],...Array.from({length:rule.cap+1},(_,n)=>[String(n),String(n)])];
+   s+='<tr><td class="name">'+h(item.name)+'</td><td>'+pDrop(options,mHas(item.masteryEarnedRank)?String(item.masteryEarnedRank):'','data-m-rank="'+enc(ek(item.category,item.name))+'"')+'</td><td>'+calc.xp.toLocaleString()+'</td><td>'+Math.max(0,(rule.cap-calc.rank)*rule.rate).toLocaleString()+'</td></tr>';
+  }
+  s+='</tbody></table></div></section>';
+ }
  s+='<section class="panel"><h2>Mission mastery verification</h2><p class="muted tiny">The 2025 tracker stored 14 weighted destination checkmarks. For missions added later or missions not covered by those historical region totals, individual node completion is not enough: its awarded mastery XP must be known. Use your game-profile XP above for the most reliable result.</p>';
  s+='<div class="mColumns"><div><strong>Normal star chart</strong><p class="muted tiny">'+x.normal.checked+' historical regions checked · '+x.normal.historical.toLocaleString()+' old XP · '+x.normal.completedCount+' individual nodes recorded</p></div><div><strong>Steel Path</strong><p class="muted tiny">'+x.steel.checked+' historical regions checked · '+x.steel.historical.toLocaleString()+' old XP · '+x.steel.completedCount+' individual nodes recorded</p></div></div>';
  const nodeRows=[...x.normal.nodeRows.map(y=>({...y,mode:'normal'})),...x.steel.nodeRows.map(y=>({...y,mode:'steel'}))];
