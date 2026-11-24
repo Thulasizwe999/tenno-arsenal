@@ -180,3 +180,5 @@ document.addEventListener('input',e=>{
  const newInput=document.getElementById('sFindAct');newInput?.focus();try{newInput?.setSelectionRange(pos,pos)}catch(_){}
 });
 const S_STYLE=document.createElement('style');S_STYLE.textContent='.sNumber{width:115px;max-width:100%}.sGoal{width:230px;max-width:100%}.tablewrap .data td{vertical-align:middle}.pTabs{row-gap:8px}@media(max-width:600px){.sGoal{min-width:135px}.sNumber{width:100px}}';document.head.append(S_STYLE);
+
+if(state.page==='progress')render();
