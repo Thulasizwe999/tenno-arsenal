@@ -8,7 +8,7 @@ const W_DASH={
  snapshot:null,fetchedAt:null,loading:false,attempted:false,error:'',
  view:'all',tier:'All',mode:'All',search:'',showExpired:false
 };
-const W_VIEWS=[['all','All opportunities'],['fissures','Void fissures'],['alerts','Alerts & events'],['invasions','Invasions'],['syndicates','Syndicates'],['daily','Daily / weekly']];
+const W_VIEWS=[['all','All opportunities'],['fissures','Void fissures'],['alerts','Alerts & events'],['invasions','Invasions'],['syndicates','Syndicates'],['nightwave','Nightwave'],['daily','Daily / weekly']];
 const W_TIERS=['All','Lith','Meso','Neo','Axi','Requiem','Omnia'];
 function wStr(v){return v===undefined||v===null?'':String(v);}
 function wItems(v){return Array.isArray(v)?v:[];}
@@ -142,6 +142,20 @@ function wSyndicates(world){
  }
  return '<section class="panel wSection">'+wHeading('Syndicate missions','Public daily missions. Completing one depends on your faction affiliation and access.')+wTable(['Faction','Location','Refresh','Plan'],rows.slice(0,100))+'</section>';
 }
+function wNightwave(world){
+ const all=wActive(world.nightwave?.activeChallenges);
+ const list=wFilter(all,x=>[x.title,x.desc,x.description,x.reputation].join(' '));
+ const personal=wPrivate()?.nightwave?.acts||[];
+ const rows=list.map((x,i)=>{
+  const name=wStr(x.title||x.name||'Unknown Act'),match=personal.find(a=>wStr(a.title).trim().toLowerCase()===name.trim().toLowerCase());
+  const description=wStr(x.desc||x.description||'');
+  const label=x.isDaily?'Daily':x.isElite?'Elite Weekly':x.isPermanent?'Permanent':'Weekly';
+  const status=match?(match.done?'Tracked · completed':match.progress!=null?('Tracked · '+match.progress+(match.target?'/'+match.target:'')):'Tracked · not marked complete'):'Not individually tracked';
+  const act={id:wStr(x.id||name)+'|'+i,node:'Nightwave',title:name,missionType:label,expiry:x.expiry||world.nightwave?.expiry};
+  return '<tr><td class="name">'+h(name)+'<small class="muted">'+h(description)+'</small></td><td>'+h(label)+'</td><td>'+h(x.reputation!=null?Number(x.reputation).toLocaleString()+' Standing':'—')+'</td><td>'+h(status)+'</td><td>'+wPinButton('nightwave',act)+'</td></tr>';
+ });
+ return '<section class="panel wSection">'+wHeading('Nightwave Acts','Live public challenges + your manually saved Act progress; no automatic account completion sync')+wTable(['Act','Type','Reward','Your record','Plan'],rows)+'</section>';
+}
 function wEvents(world){
  const list=wFilter(wActive(world.events),x=>[x.description,x.tooltip,x.mission?.node,x.node].join(' '));
  const rows=list.slice(0,35).map(x=>'<tr><td class="name">'+h(x.description||x.tooltip||x.name||'Event')+'</td><td>'+h(wNode(x.mission||x))+'</td><td>'+wLeft(x.expiry)+'</td><td>'+wPinButton('event',x)+'</td></tr>');
@@ -166,7 +180,7 @@ function wCycles(world){
 }
 function wVariants(title,x,prop,group){
  if(!x||typeof x!=='object')return '';
- const entries=wItems(x[prop]);
+ const value=x[prop];const entries=wItems(value).length?wItems(value):(value&&typeof value==='object'&&(value.node||value.mission||value.nodes)?wItems(value.nodes).length?wItems(value.nodes):[value]:[]);
  let out='<div class="wDaily"><div class="wDailyHead"><strong>'+h(title)+'</strong><span class="muted tiny">'+wLeft(wExpiry(x))+'</span></div>';
  if(x.boss||x.faction)out+='<p class="muted tiny">'+h([x.boss,x.faction].filter(Boolean).join(' · '))+'</p>';
  if(entries.length)out+='<div class="wDailyRows">'+entries.map((y,i)=>'<div class="wDailyItem"><span>'+h(wStr(y.node||y.mission?.node||y.mission||'Mission '+(i+1)))+'</span><small>'+h(wStr(y.missionType||y.type||y.modifier||''))+'</small>'+wPinButton(group,{id:group+':'+i,node:y.node||y.mission?.node||title,title:title+' '+(i+1),missionType:y.missionType||y.type||'',expiry:x.expiry})+'</div>').join('')+'</div>';
@@ -214,6 +228,7 @@ function wPage(){
  if(['all','invasions'].includes(W_DASH.view))s+=wInvasions(world);
  if(['all','syndicates'].includes(W_DASH.view))s+=wSyndicates(world);
  if(['all','daily'].includes(W_DASH.view))s+=wDaily(world);
+ if(['all','nightwave'].includes(W_DASH.view))s+=wNightwave(world);
  s+=wShortlist();
  s+='<section class="panel wSection"><h2>Using live missions for farming</h2><p class="muted tiny">This page shows public rotations, not personal account completions. A fissure, a Syndicate mission and a Steel Path Incursion listed at the same location are <strong>not automatically one combinable mission</strong>. The next Recommendations page will only propose stacking when mission variants, eligibility and objectives are compatible. Rewards, Nightwave Acts, resource tables and enemy spawns also need independent verification.</p><p class="muted tiny">Feed: <a href="https://docs.warframestat.us/" target="_blank" rel="noopener">WarframeStatus</a> · Backup view: <a href="https://hub.warframestat.us" target="_blank" rel="noopener">Warframe Hub</a> · No PlayStation login needed</p></section>';
  return s;
@@ -255,5 +270,5 @@ document.addEventListener('input',event=>{
 });
 if(typeof window!=='undefined'){window.setInterval(wTick,30000);if(window.location.hash==='#world')go('world');}
 const W_STYLES=document.createElement('style');
-W_STYLES.textContent='.wSection{margin-top:18px}.wIntro,.wSnapshot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 15px;margin:10px 0 15px}.wMetrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}.wCycle{background:var(--raised);border:1px solid var(--line);border-radius:9px;padding:12px;min-width:0}.wCycles{margin:14px 0 4px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.wCycle strong{font-size:12px}.wCycleState{font-size:16px;font-weight:700;margin:7px 0}.wClock{white-space:nowrap;color:var(--gold);font-weight:700}.wToolbar{margin:20px 0 10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}.wNav,.wFilters{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.wToolbar .field{flex:1;min-width:195px;max-width:330px}.wTable td{font-size:12px}.wTable .button{white-space:nowrap}.wTable td small{display:block;font-size:11px}.wDailyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.wDaily{background:var(--raised);border:1px solid var(--line);padding:12px;border-radius:9px}.wDailyHead{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}.wDailyRows{margin-top:7px}.wDailyItem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.wDailyItem:last-child{border-bottom:0}.wDailyItem span{flex:1;min-width:0}.wDailyItem small{color:var(--muted)}.wEmpty{margin:14px 0}.wSection h2{margin:0}@media(max-width:900px){.wMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.wCycles{grid-template-columns:repeat(2,minmax(0,1fr))}.wDailyGrid{grid-template-columns:1fr}}@media(max-width:600px){.wCycles{grid-template-columns:1fr 1fr}.wToolbar{align-items:stretch}.wToolbar .field{max-width:none}.wDailyItem{flex-wrap:wrap}.wDailyItem .button{margin-left:auto}}';
+W_STYLES.textContent='.mobileNav{overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}.mobileNav button{min-width:60px;flex:0 0 60px}.wSection{margin-top:18px}.wIntro,.wSnapshot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 15px;margin:10px 0 15px}.wMetrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}.wCycle{background:var(--raised);border:1px solid var(--line);border-radius:9px;padding:12px;min-width:0}.wCycles{margin:14px 0 4px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.wCycle strong{font-size:12px}.wCycleState{font-size:16px;font-weight:700;margin:7px 0}.wClock{white-space:nowrap;color:var(--gold);font-weight:700}.wToolbar{margin:20px 0 10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}.wNav,.wFilters{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.wToolbar .field{flex:1;min-width:195px;max-width:330px}.wTable td{font-size:12px}.wTable .button{white-space:nowrap}.wTable td small{display:block;font-size:11px}.wDailyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.wDaily{background:var(--raised);border:1px solid var(--line);padding:12px;border-radius:9px}.wDailyHead{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}.wDailyRows{margin-top:7px}.wDailyItem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.wDailyItem:last-child{border-bottom:0}.wDailyItem span{flex:1;min-width:0}.wDailyItem small{color:var(--muted)}.wEmpty{margin:14px 0}.wSection h2{margin:0}@media(max-width:900px){.wMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.wCycles{grid-template-columns:repeat(2,minmax(0,1fr))}.wDailyGrid{grid-template-columns:1fr}}@media(max-width:600px){.wCycles{grid-template-columns:1fr 1fr}.wToolbar{align-items:stretch}.wToolbar .field{max-width:none}.wDailyItem{flex-wrap:wrap}.wDailyItem .button{margin-left:auto}}';
 document.head.append(W_STYLES);
