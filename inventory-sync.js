@@ -45,7 +45,7 @@ function isPreview(j){
  if(j.nightwave?.claimed)rows.push(['Nightwave','Reward claims','Existing claims retained',Object.keys(j.nightwave.claimed).length+' confirmed claims to merge']);
  for(const x of j.equipment||[])if(x?.category&&x?.name){
   const key=ek(x.category,x.name),old=state.profile.equipment[key]||{};
-  rows.push(['Equipment',x.name,(old.owned?'Owned':'Unknown')+' / '+(old.blueprint?'Blueprint':'—'),(x.owned===true?'Owned':x.owned===false?'Not owned':'Unchanged')+' / '+(x.blueprint===true?'Blueprint':x.blueprint===false?'No BP':'Unchanged')]);
+  rows.push(['Equipment',x.name,IS_HAS(x,'subsumed')?(old.subsumed===true?'Subsumed':old.subsumed===false?'Not subsumed':'Not recorded'):(old.owned?'Owned':'Unknown')+' / '+(old.blueprint?'Blueprint':'—'),IS_HAS(x,'subsumed')?(x.subsumed===true?'Subsumed (ability learned)':'Not subsumed'):(x.owned===true?'Owned':x.owned===false?'Not owned':'Unchanged')+' / '+(x.blueprint===true?'Blueprint':x.blueprint===false?'No BP':'Unchanged')]);
  }
  return rows;
 }
@@ -124,11 +124,12 @@ function isApply(j){
  for(const obj of j.equipment||[]){
   if(!obj||typeof obj.name!=='string'||typeof obj.category!=='string')continue;
   const id=ek(obj.category,obj.name),old=player.equipment[id]||{name:obj.name,category:obj.category};
-  for(const key of ['owned','blueprint'])if(IS_HAS(obj,key)){
+  for(const key of ['owned','blueprint','subsumed'])if(IS_HAS(obj,key)){
    if(typeof obj[key]!=='boolean')throw Error('Invalid equipment '+key+' for '+obj.name);
    old[key]=obj[key];updated++;
   }
-  old.inventoryCheckedAt=j.capturedAt||new Date().toISOString();
+  if(IS_HAS(obj,'subsumed'))old.subsumedSource='Previously confirmed subsuming';
+  if(IS_HAS(obj,'owned')||IS_HAS(obj,'blueprint'))old.inventoryCheckedAt=j.capturedAt||new Date().toISOString();
   player.equipment[id]=old;
  }
  player.meta ||= {};
