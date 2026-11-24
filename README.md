@@ -48,3 +48,16 @@ GitHub Pages hosts the app's public code. Future UI/catalogue updates go to the 
 Sources can change or lag a game patch. Some special mission entries are present in the public mission catalogue even though they do not award star-chart mastery. The game and its player profile remain authoritative.
 
 This is an independent fan tracker, not affiliated with Digital Extremes.
+
+
+## One-time Companion-app inventory reconciliation
+
+The app provides **Settings → Merge a verified inventory capture** for a section-only import.
+
+When a Companion app recording has been reviewed, create a `tenno-arsenal-inventory-patch` version 1 JSON containing only **observed and verified** fields. Supported sections: Arcanes (rank, extra copies, optional copies by rank), spare Archon Shards (six colours, Standard and Tauforged), Syndicate ranks/Standing, Nightwave season and Acts, and optionally known equipment owned/blueprint status.
+
+The app shows a **before/after preview** and requests confirmation. It automatically downloads a full private backup before applying any changes. The merge deliberately leaves unmentioned items unchanged and preserves quests, mission nodes, mastery, mods, installed shards and notes. If some screenshots are unreadable, omit those fields and review them in-game rather than writing zero.
+
+**Do not use full-profile Restore for a small inventory refresh:** Restore replaces the local collection. The dedicated inventory merge is designed to preserve any updates made since the previous imported snapshot.
+
+The data patch, like the profile backup, is **private** and should not be committed to this public repository.
