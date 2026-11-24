@@ -50,12 +50,14 @@ function pOverview(g){
 const quests=[...P_QUESTS.map(x=>x[0]),...g.extraQuests.map(x=>x.name)];
 const qdone=quests.filter(x=>g.quests[x]==='completed').length;
 const qknown=quests.filter(x=>g.quests[x]&&g.quests[x]!=='unknown').length;
-const cDone=Object.values(g.nodes.normal).filter(x=>x==='completed').length;
-const sDone=Object.values(g.nodes.steel).filter(x=>x==='completed').length;
+const originIds=new Set(pChartNodes(g,'origin').map(n=>n.id));
+const cDone=Object.entries(g.nodes.normal).filter(([id,v])=>originIds.has(id)&&v==='completed').length;
+const sDone=Object.entries(g.nodes.steel).filter(([id,v])=>originIds.has(id)&&v==='completed').length;
+const countedNormal=g.originSummary?.normal,countedSteel=g.originSummary?.steel;
 const shardKnown=Object.keys(g.shards.spare).length||g.shards.installed.length;
 const loose=Object.values(g.shards.spare).reduce((a,n)=>a+number(n),0);
 const intrinsicKnown=Object.values(g.intrinsics).flatMap(o=>Object.values(o)).filter(x=>x!==null&&x!==undefined&&x!=='').length;
-return '<div class="cards"><div class="metric"><div class="lbl">Quests confirmed complete</div><div class="val">'+qdone+' / '+quests.length+'</div><div class="note">'+(quests.length-qknown)+' not yet reviewed</div></div><div class="metric"><div class="lbl">Completed mission nodes</div><div class="val">'+cDone+' + '+sDone+'</div><div class="note">Normal + Steel Path</div></div><div class="metric"><div class="lbl">Spare / installed shards</div><div class="val">'+(shardKnown?loose+' / '+g.shards.installed.length:'—')+'</div><div class="note">No shard quantity inferred</div></div><div class="metric"><div class="lbl">Intrinsic trees checked</div><div class="val">'+intrinsicKnown+' / 9</div><div class="note">Separate Railjack and Drifter ranks</div></div></div>';
+return '<div class="cards"><div class="metric"><div class="lbl">Quests confirmed complete</div><div class="val">'+qdone+' / '+quests.length+'</div><div class="note">'+(quests.length-qknown)+' not yet reviewed</div></div><div class="metric"><div class="lbl">Origin System · official</div><div class="val">'+(countedNormal?countedNormal.completed+' / '+countedNormal.total:cDone+' recorded')+'</div><div class="note">Steel Path: '+(countedSteel?countedSteel.completed+' / '+countedSteel.total:sDone+' recorded')+' · separately tracked from Railjack</div></div><div class="metric"><div class="lbl">Spare / installed shards</div><div class="val">'+(shardKnown?loose+' / '+g.shards.installed.length:'—')+'</div><div class="note">No shard quantity inferred</div></div><div class="metric"><div class="lbl">Intrinsic trees checked</div><div class="val">'+intrinsicKnown+' / 9</div><div class="note">Separate Railjack and Drifter ranks</div></div></div>';
 }
 progressPage=function(){
 const g=pModel();
