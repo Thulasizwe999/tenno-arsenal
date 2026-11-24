@@ -109,6 +109,8 @@ function pgApplyDelta(j){
  for(const [group,value] of Object.entries(d.intrinsicsUnspent||{})){g.intrinsicsUnspent[group]=value;changed++;}
  for(const [name,status] of Object.entries(d.quests||{})){g.quests[name]=status;changed++;}
  if(d.helminth){g.helminth={...(g.helminth||{}),...d.helminth,checkedAt:j.capturedAt||new Date().toISOString()};changed+=3;}
+ g.dashboard ||= {reviewed:{}};g.dashboard.reviewed ||= {};
+ for(const area of ['intrinsics','quests','helminth'])if(area==='intrinsics'&&(d.intrinsics||d.intrinsicsUnspent)||area==='quests'&&d.quests||area==='helminth'&&d.helminth)g.dashboard.reviewed[area]=j.capturedAt||new Date().toISOString();
  meta.appliedProgressPatches ||= [];
  meta.appliedProgressPatches.push(j.captureId);
  meta.lastGameProgressCapture={id:j.captureId,at:j.capturedAt||new Date().toISOString(),sections:Object.keys(d)};
