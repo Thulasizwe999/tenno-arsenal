@@ -61,3 +61,31 @@ The app shows a **before/after preview** and requests confirmation. It automatic
 **Do not use full-profile Restore for a small inventory refresh:** Restore replaces the local collection. The dedicated inventory merge is designed to preserve any updates made since the previous imported snapshot.
 
 The data patch, like the profile backup, is **private** and should not be committed to this public repository.
+
+
+## Star-chart maps and in-game progress capture
+
+The World & story star chart is now divided into independent maps:
+
+- **Origin System** — regular planet missions, separately tracking Normal and Steel Path
+- **Railjack Proxima** — Earth, Venus, Saturn, Uranus, Neptune, Pluto and Veil Proxima; Normal and Steel Path tracked separately
+- **Höllvania 1999** — NavNow's main missions and Faceoff variants (mode-level reference, not an Origin XP node list)
+- **Duviri** — Circuit, Lone Story and Duviri Experience
+- **Hubs & relays** — locations and consoles that are not ordinary mastery-awarding mission nodes
+
+The public mission list includes WFCD entries and official 2026 Uranus Proxima missions, which may not yet appear in the community feed. Chart grouping does not itself affect any player's saved mission status.
+
+### Safe game-progress capture
+
+**Import inventory → Choose verified update JSON** accepts a private, reviewable one-off game-progress snapshot in the same `tenno-arsenal-inventory-patch` format as a Companion capture. Supported values include:
+
+- Game-profile official mastery XP, full category breakdown, Mastery Rank and XP to next rank
+- Profile-confirmed Origin System Normal and Steel Path completion totals
+- Focus school unlocked/active status and unspent Focus
+- Railjack and Drifter Intrinsics ranks, and unspent Intrinsics
+- Installed Archon Shards confirmed in-game (separate from spare inventory)
+- Explicit selected mission-map completion changes, previewed before applying
+
+The importer validates the XP breakdown, displays a before/after review, downloads a private backup, and merges only the specified values. A unique capture ID prevents importing the same in-game snapshot twice and overwriting later manual changes. Other progress, including Companion inventory, is retained.
+
+**Do not commit player-profile screenshots, mastery totals, Focus balances or progress JSON to this public repository.** Personal data is stored only in the browser's private profile and its local backups.
