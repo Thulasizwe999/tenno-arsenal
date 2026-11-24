@@ -114,7 +114,7 @@ isApply=function(j){
  }
  g.intrinsicsUnspent ||= {};
  for(const [group,value] of Object.entries(p.intrinsicsUnspent||{}))g.intrinsicsUnspent[group]=value;
- if(p.installedShards!==undefined)g.shards.installed=JSON.parse(JSON.stringify(p.installedShards));
+ if(p.installedShards!==undefined){g.shards.installed=JSON.parse(JSON.stringify(p.installedShards));g.shards.installedConfirmedAt=j.capturedAt||new Date().toISOString();}
  const src=p.missionChanges;
  const steelNodes=pAllNodes(g).filter(n=>pChartOf(n)==='origin'&&src.completeSteelOriginPlanets.includes(n.planet));
  for(const n of steelNodes)g.nodes.steel[n.id]='completed';
