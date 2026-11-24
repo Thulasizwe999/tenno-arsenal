@@ -151,7 +151,7 @@ let s='<div class="panel"><h2>Focus schools & abilities</h2><p class="muted tiny
 s+=P_SCHOOLS.map(x=>'<button class="button small '+(x===sc?'gold':'ghost')+'" data-p-school="'+x+'">'+x+'</button>').join('')+'</div>';
 const yn=(field,label)=>'<label>'+label+pDrop([['','Unknown'],['yes','Yes'],['no','No']],v[field]===null?'':v[field]?'yes':'no','data-p-focus-field="'+field+'"')+'</label>';
 const num=(field,label,max)=>'<label>'+label+'<input class="field" type="number" min="0" '+(max?'max="'+max+'"':'')+' placeholder="Unknown" data-p-focus-field="'+field+'" value="'+(v[field]??'')+'"></label>';
-s+='<div class="formgrid">'+yn('unlocked','School unlocked')+num('available','Unspent Focus')+num('spent','Invested Focus')+yn('tektolyst','Tektolyst artifact')+num('tauronRank','Tauron upgrades (0–5)',5)+'</div><p class="helptext">Individual ability maximum ranks depend on the node; the game is the authority. New Tauron Strike branches appeared in The Old Peace.</p>';
+s+='<div class="formgrid">'+yn('unlocked','School unlocked')+yn('active','Currently active')+num('available','Unspent Focus')+num('spent','Invested Focus')+yn('tektolyst','Tektolyst artifact')+num('tauronRank','Tauron upgrades (0–5)',5)+'</div><p class="helptext">Individual ability maximum ranks depend on the node; the game is the authority. New Tauron Strike branches appeared in The Old Peace.</p>';
 s+='<div class="tablewrap"><table class="data"><thead><tr><th>Focus node</th><th>Rank</th><th>Waybound unbound</th></tr></thead><tbody>';
 for(const name of names){const a=v.nodes[name]||{},isWay=P_WAY[sc].includes(name);s+='<tr><td class="name">'+h(name)+'</td><td><input class="field pRank" type="number" min="0" max="10" placeholder="Unknown" value="'+(a.rank??'')+'" data-p-focus-node="'+enc(name)+'"></td><td>'+(isWay?'<label><input class="check" type="checkbox" data-p-way="'+enc(name)+'" '+(a.unbound?'checked':'')+'> Unbound</label>':'—')+'</td></tr>';}
 s+='</tbody></table></div><div class="editline pAdd"><input class="field" id="pNewFocus" placeholder="Add new Focus ability"><button class="button small" data-p-act="add-focus">Add node</button></div></div>';return s;
@@ -163,13 +163,13 @@ for(const tier of ['Standard','Tauforged']){const k=color+'|'+tier;s+='<label>'+
 s+='<div class="panel"><h2>Installed on Warframes</h2>';
 if(g.shards.installed.length){s+='<div class="tablewrap"><table class="data"><thead><tr><th>Warframe</th><th>Slot</th><th>Shard</th><th>Note</th><th></th></tr></thead><tbody>';
 g.shards.installed.forEach((a,i)=>{s+='<tr><td class="name">'+h(a.frame)+'</td><td>'+number(a.slot)+'</td><td>'+h(a.color)+' '+(a.tau?'Tauforged':'')+'</td><td>'+h(a.note||'—')+'</td><td><button class="button small" data-p-act="remove-shard" data-p-index="'+i+'">Remove</button></td></tr>';});s+='</tbody></table></div>';}
-else s+=empty('No shard installations recorded yet','No installed shards have been recorded yet. This does not mean you own none.');
+else s+=g.shards.installedConfirmedAt?'<div class="notice"><strong>No shards installed.</strong> Confirmed in-game on '+h(new Date(g.shards.installedConfirmedAt).toLocaleDateString())+'. Spare shards remain in the inventory above.</div>':empty('No shard installations recorded yet','No installed shards have been recorded yet. This does not mean you own none.');
 s+='<div class="formgrid pAdd"><label>Warframe<input class="field" id="pFrame" list="pFrames" placeholder="e.g. Wisp Prime"></label><label>Slot (1–5)<input class="field" id="pSlot" type="number" min="1" max="5" value="1"></label><label>Colour<select class="select" id="pColor">'+option(P_COLORS,'Crimson')+'</select></label><label><input type="checkbox" id="pTau"> Tauforged</label><label class="wide">Bonus / notes<input class="field" id="pShardNote"></label></div>';
 s+='<datalist id="pFrames">'+mergeEquip().filter(x=>x.category==='Warframes').map(x=>'<option value="'+h(x.name)+'">').join('')+'</datalist><button class="button gold" data-p-act="add-shard">Record installed shard</button><p class="helptext">Installing a shard does not automatically deduct an unverified spare quantity.</p></div>';return s;
 }
 function pIntrinsics(g){
 let s='<div class="panel"><h2>Individual Intrinsics</h2><p class="muted tiny">Each track ranges from 0 to 10. Unknown remains blank until you check in-game.</p>';
-for(const type of Object.keys(P_INTR)){const legacy=state.profile.progress.intrinsics[type];s+='<h3>'+type+'</h3><p class="helptext">Previously recorded total: '+h(legacy===undefined?'not recorded':legacy)+' (kept until you enter individual ranks)</p><div class="pRanks">';
+for(const type of Object.keys(P_INTR)){const legacy=state.profile.progress.intrinsics[type];s+='<h3>'+type+'</h3><p class="helptext">Recorded total: '+h(legacy===undefined?'not recorded':legacy)+' ranks'+(g.intrinsicsUnspent?.[type]!==undefined?' · '+g.intrinsicsUnspent[type]+' unspent points':'')+'.</p><div class="pRanks">';
 for(const name of P_INTR[type]){const val=g.intrinsics[type][name];s+='<label>'+name+'<select class="select" data-p-intrinsic="'+type+'|'+name+'">'+option(['Unknown',...Array.from({length:11},(_,i)=>String(i))],val===null||val===undefined?'Unknown':String(val))+'</select></label>';}s+='</div>';}
 s+='</div>';return s;
 }
@@ -227,7 +227,7 @@ else if(el.dataset.pQuest){g.quests[dec(el.dataset.pQuest)]=el.value;save=true;}
 else if(el.dataset.pMilestone){g.milestones[dec(el.dataset.pMilestone)]=el.value;save=true;}
 else if(el.dataset.pIntrinsic){const [type,name]=el.dataset.pIntrinsic.split('|');g.intrinsics[type][name]=el.value==='Unknown'?null:Number(el.value);save=true;}
 else if(el.dataset.pStock){if(el.value==='')delete g.shards.spare[el.dataset.pStock];else g.shards.spare[el.dataset.pStock]=cleanInt(el.value);save=true;}
-else if(el.dataset.pFocusField){const v=g.focus[P_UI.school],field=el.dataset.pFocusField;if(field==='unlocked'||field==='tektolyst')v[field]=el.value===''?null:el.value==='yes';else v[field]=el.value===''?null:Math.min(field==='tauronRank'?5:100000000,cleanInt(el.value));save=true;}
+else if(el.dataset.pFocusField){const v=g.focus[P_UI.school],field=el.dataset.pFocusField;if(field==='unlocked'||field==='tektolyst'||field==='active')v[field]=el.value===''?null:el.value==='yes';else v[field]=el.value===''?null:Math.min(field==='tauronRank'?5:100000000,cleanInt(el.value));save=true;}
 else if(el.dataset.pFocusNode){const name=dec(el.dataset.pFocusNode),v=g.focus[P_UI.school];v.nodes[name] ||= {};v.nodes[name].rank=el.value===''?null:Math.min(10,cleanInt(el.value));save=true;}
 else if(el.dataset.pWay){const name=dec(el.dataset.pWay),v=g.focus[P_UI.school];v.nodes[name] ||= {};v.nodes[name].unbound=el.checked;save=true;}
 if(save){pSave();toast('Progress saved privately');}
