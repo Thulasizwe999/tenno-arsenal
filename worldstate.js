@@ -5,7 +5,7 @@
  */
 const W_ENDPOINT='https://api.warframestat.us/ps4?language=en';
 const W_DASH={
- snapshot:null,fetchedAt:null,loading:false,attempted:false,error:'',
+ snapshot:null,fetchedAt:null,lastAttempt:null,loading:false,attempted:false,error:'',
  view:'all',tier:'All',mode:'All',search:'',showExpired:false
 };
 const W_VIEWS=[['all','All opportunities'],['fissures','Void fissures'],['alerts','Alerts & events'],['invasions','Invasions'],['syndicates','Syndicates'],['nightwave','Nightwave'],['daily','Daily / weekly']];
@@ -44,7 +44,7 @@ function wTick(){
 }
 async function wFetch(explicit=false){
  if(W_DASH.loading)return;
- W_DASH.loading=true;W_DASH.attempted=true;W_DASH.error='';
+ W_DASH.loading=true;W_DASH.attempted=true;W_DASH.lastAttempt=Date.now();W_DASH.error='';
  if(explicit&&state.page==='world')render();
  const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),16000);
  try{
@@ -268,7 +268,8 @@ document.addEventListener('input',event=>{
  const caret=event.target.selectionStart;W_DASH.search=event.target.value;render();
  const fresh=document.getElementById('wSearch');if(fresh){fresh.focus();try{fresh.setSelectionRange(caret,caret)}catch(_e){}}
 });
-if(typeof window!=='undefined'){window.setInterval(wTick,30000);if(window.location.hash==='#world')go('world');}
+if(typeof window!=='undefined'){window.setInterval(()=>{wTick();if(state.page==='world'&&!W_DASH.loading&&(!W_DASH.lastAttempt||Date.now()-W_DASH.lastAttempt>=5*60000))wFetch();},30000);if(window.location.hash==='#world')go('world');}
 const W_STYLES=document.createElement('style');
 W_STYLES.textContent='.mobileNav{overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}.mobileNav button{min-width:60px;flex:0 0 60px}.wSection{margin-top:18px}.wIntro,.wSnapshot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 15px;margin:10px 0 15px}.wMetrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}.wCycle{background:var(--raised);border:1px solid var(--line);border-radius:9px;padding:12px;min-width:0}.wCycles{margin:14px 0 4px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.wCycle strong{font-size:12px}.wCycleState{font-size:16px;font-weight:700;margin:7px 0}.wClock{white-space:nowrap;color:var(--gold);font-weight:700}.wToolbar{margin:20px 0 10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}.wNav,.wFilters{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.wToolbar .field{flex:1;min-width:195px;max-width:330px}.wTable td{font-size:12px}.wTable .button{white-space:nowrap}.wTable td small{display:block;font-size:11px}.wDailyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.wDaily{background:var(--raised);border:1px solid var(--line);padding:12px;border-radius:9px}.wDailyHead{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}.wDailyRows{margin-top:7px}.wDailyItem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.wDailyItem:last-child{border-bottom:0}.wDailyItem span{flex:1;min-width:0}.wDailyItem small{color:var(--muted)}.wEmpty{margin:14px 0}.wSection h2{margin:0}@media(max-width:900px){.wMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.wCycles{grid-template-columns:repeat(2,minmax(0,1fr))}.wDailyGrid{grid-template-columns:1fr}}@media(max-width:600px){.wCycles{grid-template-columns:1fr 1fr}.wToolbar{align-items:stretch}.wToolbar .field{max-width:none}.wDailyItem{flex-wrap:wrap}.wDailyItem .button{margin-left:auto}}';
 document.head.append(W_STYLES);
+if(state.page==='overview')render();
