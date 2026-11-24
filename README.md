@@ -81,6 +81,7 @@ Navigate to **Mastery audit** (or use the **Audit mastery** command-centre short
 This is an independent, live calculation from saved player data:
 - Calculates equipment mastery by exact category and earned rank (100 XP/rank for weapons, prisms, modular weapon parts; 200 XP/rank for frames, companions, vehicles, Necramechs)
 - Tracks rank-40 equipment separately (Paracesis, Kuva/Tenet/Coda weapons and Necramechs); **mastered** alone does not prove rank 40. The audit conservatively credits rank 30 until an earned rank is explicitly entered.
+- Tracks partial mastery ranks for **owned but unmastered** items, including Kuva/Tenet weapons and Necramechs; the recorded value is the highest rank ever earned, not necessarily the current rank after Forma.
 - Excludes the generic unpictured **Amp** profile placeholder from mastery calculations; highlights duplicate Mote Amp / Mote Prism credit risk.
 - Adds Railjack and Drifter Intrinsics XP at 1,500 per earned rank; uses original Drifter/Railjack **total ranks** only until all per-track ranks or official XP are recorded.
 - Uses original 14-region Normal/Steel historical worksheet weights (27,519 XP maximum on the saved baseline); **these are not current live node mastery values**. Completed nodes outside the historical checked region are listed for manual per-node XP entry; nodes within a previously credited region are not counted twice.
