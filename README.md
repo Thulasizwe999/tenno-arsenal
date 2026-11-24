@@ -72,3 +72,30 @@ The **Command centre** replaces the old equipment-only homepage with an overview
 **Privacy and accuracy:** The home screen is entirely generated from your *browser-local* private profile and the *public* game catalogue. No personal Standing, Focus ranks, shards, task history or review dates are committed to this repository. An empty browser shows an import prompt, never another player's data. Mission completion and new account progress cannot be retrieved automatically from PlayStation. Private profile backups remain the way to migrate between devices.
 
 **Review freshness:** Daily rows older than one day and weekly rows older than seven days are labelled for rechecking. Those are reminders, not a claim to match Warframe's exact reset boundaries.
+
+
+## Mastery XP audit (November 2026)
+
+Navigate to **Mastery audit** (or use the **Audit mastery** command-centre shortcut).
+
+This is an independent, live calculation from saved player data:
+- Calculates equipment mastery by exact category and earned rank (100 XP/rank for weapons, prisms, modular weapon parts; 200 XP/rank for frames, companions, vehicles, Necramechs)
+- Tracks rank-40 equipment separately (Paracesis, Kuva/Tenet/Coda weapons and Necramechs); **mastered** alone does not prove rank 40. The audit conservatively credits rank 30 until an earned rank is explicitly entered.
+- Excludes the generic unpictured **Amp** profile placeholder from mastery calculations; highlights duplicate Mote Amp / Mote Prism credit risk.
+- Adds Railjack and Drifter Intrinsics XP at 1,500 per earned rank; uses original Drifter/Railjack **total ranks** only until all per-track ranks or official XP are recorded.
+- Uses original 14-region Normal/Steel historical worksheet weights (27,519 XP maximum on the saved baseline); **these are not current live node mastery values**. Completed nodes outside the historical checked region are listed for manual per-node XP entry; nodes within a previously credited region are not counted twice.
+- Separately accepts **official in-game** Mastery XP (total and source-specific breakdown) without modifying the imported original XP.
+- Highlights a difference between the reconstructed and original/official XP, and offers a category XP table plus possible next mastery gains.
+
+### Initial March 2026 reconciliation
+
+The original Google Sheet's own formula reconstructs **1,426,519 XP** at MR23:
+- Equipment **1,345,000** (includes 3,000 XP for generic \`Amp\` and assumes rank-40 Paracesis)
+- Railjack Intrinsics **52,500** (35 legacy ranks)
+- Drifter Intrinsics **1,500** (1 legacy rank)
+- Normal star chart **27,519**
+- Steel Path **0** based on the old checkboxes.
+
+The new conservative audit gives **1,422,519 XP**, a **4,000 XP difference**: it excludes the non-mastery \`Amp\` (3,000) and does not assume Paracesis has reached rank 40 (1,000). If the player confirms Paracesis at rank 40, the estimate becomes **1,423,519 XP**, pending verification of mission/Intrinsic records. These are historical estimates, **not verified current PlayStation profile totals**. Current mission rewards may exceed the old baseline as Warframe is updated.
+
+All future earned-rank, official-XP and mission-XP overrides are stored only in the browser-local private player profile and included in its private JSON backups. The public GitHub repository does not contain player mastery records.
