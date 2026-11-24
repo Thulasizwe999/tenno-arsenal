@@ -87,9 +87,9 @@ function dAreaInfo(id,c){
  equipment:{main:c.mastered+' / '+c.gear+' mastered',sub:c.ownedGear+' owned · '+c.readyLevel+' ready to level',known:c.gear>0},
  mods:{main:c.ownedMods+' / '+c.mods+' owned',sub:c.copies+' copies at recorded ranks',known:c.mods>0},
  quests:{main:c.questsDone+' / '+c.questsTotal+' confirmed complete',sub:(c.questsTotal-c.questsKnown)+' quests not reviewed',known:c.questsKnown>0},
- star:{main:c.normalDone+' Normal · '+c.steelDone+' Steel Path',sub:c.nodeKnown+' explicit node statuses'+(c.nodeCatalogLoaded?' · '+c.nodePossible+' possible statuses':' · node catalogue pending'),known:c.nodeKnown>0},
+ star:{main:(c.nodeKnown?c.normalDone+' Normal · '+c.steelDone+' Steel Path':'No individual nodes checked'),sub:c.nodeKnown+' explicit node statuses'+(c.nodeCatalogLoaded?' · '+c.nodePossible+' possible statuses':' · node catalogue pending'),known:c.nodeKnown>0},
  focus:{main:c.focusSet+' / '+c.focusTotal+' ability ranks recorded',sub:c.focusSchools+' / 5 school unlock states checked',known:c.focusSet>0||c.focusSchools>0},
- shards:{main:c.spareRecorded?c.spareCount+' spare · '+c.installations+' installed':c.installations+' installations recorded',sub:c.spareRecorded+' / 12 spare-count fields checked',known:c.spareRecorded>0||c.installations>0},
+ shards:{main:c.spareRecorded?c.spareCount+' spare · '+c.installations+' installed':c.installations?c.installations+' installations recorded':'Shard inventory not recorded',sub:c.spareRecorded+' / 12 spare-count fields checked',known:c.spareRecorded>0||c.installations>0},
  intrinsics:{main:c.intrKnown+' / '+c.intrTotal+' tracks recorded',sub:'Railjack 5 · Drifter 4',known:c.intrKnown>0},
  syndicates:{main:c.syKnown+' / '+c.syMax+' factions recorded',sub:'Ranks · standing · next target',known:c.syKnown>0},
  activities:{main:c.actKnown+' / '+c.actTotal+' statuses recorded',sub:c.actOpen+' actionable · '+c.actDone+' last marked complete',known:c.actKnown>0},
@@ -146,6 +146,20 @@ function dPriorities(g){
   s+='<div class="dListRow"><div class="dListBody"><strong>'+h(task.name)+'</strong><div class="muted tiny">'+h(task.action||'Track objective')+' · '+h(task.group||'Other')+(task.detail?' · '+h(task.detail):'')+'</div></div>'+dJumpButton(ref,'Review')+'</div>';
  }
  s+='</div><div class="dShow"><button class="button small" data-d-expand="priority">'+(D_UI.priorityAll?'Show top eight':'Show more actions')+'</button></div></section>';return s;
+}
+function dAuditRoute(g){
+ const rows=[
+  ['1','Orbiter','Codex quests → Arsenal/Foundry → Mods console → Operator Focus → Helminth shards → Syndicate console',['quests','equipment','mods','focus','shards','syndicates']],
+  ['2','Navigation','Review Normal/Steel Path nodes and rotating Sorties, Hunts, Incursions, Circuit and weekly activities',['star','activities']],
+  ['3','Hubs & vendors','Cetus · Fortuna · Necralisk · Chrysalith · Sanctum Anatomica · Höllvania; check Standing, rewards and KIM/GIM',['syndicates','hex']],
+  ['4','Specialised systems','Railjack/Drifter Intrinsics · Arcane and Riven collections · long-term unlocks',['intrinsics','arcanes','milestones']]
+ ];
+ let s='<section class="panel dSection"><div class="editline"><div><h2>Efficient in-game check route</h2><p class="muted tiny">Suggested order to minimise revisiting menus and vendors when updating the snapshot. Use the app between checks to see the last saved numbers.</p></div></div><div class="dRoute">';
+ for(const [i,where,details,ids] of rows){
+  const latest=ids.map(id=>g.dashboard.reviewed[id]).filter(Boolean).sort().at(-1);
+  s+='<div class="dRouteStep"><span class="dRouteNum">'+i+'</span><div class="dRouteText"><strong>'+h(where)+'</strong><p class="muted tiny">'+h(details)+'</p><p class="muted tiny">'+ids.map(id=>{const a=D_AREAS.find(x=>x.id===id);return a?h(a.title):''}).join(' · ')+'</p></div><span class="muted tiny dRouteDate">'+h(latest?'Most recent review: '+dDate(latest):'No review recorded')+'</span></div>';
+ }
+ s+='</div></section>';return s;
 }
 function dQuickReference(g,c){
  const tabs=[['syndicates','Syndicates'],['focus','Focus'],['intrinsics','Intrinsics'],['shards','Shards']];
@@ -213,7 +227,7 @@ function dOverview(){
  const items=[
  ['Mastery rank',String(state.profile.meta.masteryRank||'—'),c.mastered+' / '+c.gear+' equipment mastered'],
  ['Quests complete',c.questsDone+' / '+c.questsTotal,(c.questsTotal-c.questsKnown)+' quests have no recorded status'],
- ['Mission nodes',c.normalDone+' + '+c.steelDone,'Normal + Steel Path confirmed complete'],
+ ['Mission nodes',c.nodeKnown?c.normalDone+' + '+c.steelDone:'—',c.nodeKnown?'Normal + Steel Path confirmed complete':'Individual mission progress not recorded'],
  ['Syndicates',c.syKnown+' / '+c.syMax,'Factions with recorded rank or standing'],
  ['Intrinsics',c.intrKnown+' / '+c.intrTotal,'Tracks with confirmed ranks'],
  ['Play next',String(c.actOpen+c.readyLevel),'Available/in-progress modes + ready-to-level gear']
@@ -223,6 +237,7 @@ function dOverview(){
  s+='<div class="dTwo">'+dPriorities(g)+dWeekly(g)+'</div>';
  s+=dCoverage(g,c);
  s+=dQuickReference(g,c);
+ s+=dAuditRoute(g);
  s+=dAreas(g,c);
  s+='<div class="panel dSection"><h2>What this dashboard does — and does not do</h2><p class="muted tiny">It summarises the progress you have actually saved in Tenno Arsenal. Your historical workbook data is not a live PlayStation sync. New game catalogue entries can refresh separately, but personal game activity, Standing, Focus, quests and shards require checking in Warframe or a verified import. Click <strong>Mark checked</strong> only after confirming a section in-game; this records the review date without marking content complete. Use <strong>Backup</strong> to preserve your private data before clearing browser storage or switching devices.</p></div>';
  return s;
@@ -254,4 +269,5 @@ const D_STYLE=document.createElement('style');
 D_STYLE.textContent='.dSnapshot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 16px;margin:0 0 16px}.dMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}.dTwo{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:15px;margin:19px 0}.dSection{margin:18px 0}.dSection h2{margin:0}.dSection p{margin-top:8px}.dList{margin-top:14px}.dListRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.dListRow:last-child{border-bottom:0}.dListBody{min-width:0;flex:1}.dListBody strong{display:block;font-size:13px}.dListBody .muted{font-size:11px}.dListRow .button{flex:none}.dListRow .pill{white-space:nowrap}.dCov{display:grid;grid-template-columns:minmax(180px,1fr) minmax(70px,1.6fr) 67px;align-items:center;gap:12px;margin:16px 0}.dCovLabel{display:flex;flex-direction:column;gap:3px;font-size:13px}.dCovLabel strong{font-size:11px;color:var(--muted);font-weight:500}.dOpen{color:var(--cyan);border:0;background:transparent;cursor:pointer;font-size:12px}.dAreas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:16px}.dArea{display:flex;flex-direction:column;gap:9px;padding:14px;background:var(--raised);border:1px solid var(--line);border-radius:var(--r);min-width:0}.dAreaTop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dAreaIcon{width:26px;height:26px;color:var(--gold);display:grid;place-items:center;background:#111d2d;border-radius:6px}.dAreaName{font-size:13px;font-weight:700;flex:1}.dAreaTop .pill{font-size:10px}.dMain{font-size:15px;font-weight:700;letter-spacing:-.02em}.dWhere{padding:10px;border:1px dashed #394e65;border-radius:7px;font-size:12px;line-height:1.5;margin-top:auto}.dAreaFoot{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-top:5px}.dAreaControls{display:flex;gap:6px;align-items:center}.dAreaControls .button{font-size:11px;padding:6px 8px}.dShow{margin-top:12px}.dCov .progressbar{width:100%}@media(max-width:1180px){.dAreas{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:950px){.dTwo{grid-template-columns:1fr}.dMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.dAreas{grid-template-columns:1fr}.dMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dCov{grid-template-columns:minmax(0,1fr) minmax(80px,1fr) 55px;gap:6px}.dListRow{align-items:flex-start;flex-wrap:wrap}.dListRow .button{margin-left:auto}.dAreaFoot{align-items:center}}';
 document.head.append(D_STYLE);
 const D_REF_STYLE=document.createElement('style');D_REF_STYLE.textContent='.dRefTabs{display:flex;gap:7px;flex-wrap:wrap;margin:15px 0}.dRefRows{display:flex;flex-direction:column;gap:0}.dRefRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line);font-size:12px}.dRefRow strong{flex:1;min-width:135px;font-size:13px}.dRefRow span{color:var(--muted)}.dRefRow:last-child{border-bottom:0}';document.head.append(D_REF_STYLE);
+const D_ROUTE_STYLE=document.createElement('style');D_ROUTE_STYLE.textContent='.dRoute{margin-top:13px}.dRouteStep{display:flex;align-items:flex-start;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}.dRouteStep:last-child{border-bottom:0}.dRouteNum{background:var(--raised);color:var(--gold);border:1px solid var(--line);border-radius:8px;min-width:28px;height:28px;display:grid;place-items:center;font-weight:700}.dRouteText{flex:1;min-width:0}.dRouteText strong{font-size:13px}.dRouteText p{margin:4px 0}.dRouteDate{max-width:140px;text-align:right}@media(max-width:600px){.dRouteStep{flex-wrap:wrap}.dRouteDate{max-width:none;margin-left:40px;text-align:left}}';document.head.append(D_ROUTE_STYLE);
 if(state.page==='overview')render();
