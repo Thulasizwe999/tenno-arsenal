@@ -116,7 +116,7 @@ for(const tier of ['Standard','Tauforged']){const k=color+'|'+tier;s+='<label>'+
 s+='<div class="panel"><h2>Installed on Warframes</h2>';
 if(g.shards.installed.length){s+='<div class="tablewrap"><table class="data"><thead><tr><th>Warframe</th><th>Slot</th><th>Shard</th><th>Note</th><th></th></tr></thead><tbody>';
 g.shards.installed.forEach((a,i)=>{s+='<tr><td class="name">'+h(a.frame)+'</td><td>'+number(a.slot)+'</td><td>'+h(a.color)+' '+(a.tau?'Tauforged':'')+'</td><td>'+h(a.note||'—')+'</td><td><button class="button small" data-p-act="remove-shard" data-p-index="'+i+'">Remove</button></td></tr>';});s+='</tbody></table></div>';}
-else s+=empty('No shard installations recorded yet','The old workbook contains no shard inventory, so this does not indicate you own none.');
+else s+=empty('No shard installations recorded yet','No installed shards have been recorded yet. This does not mean you own none.');
 s+='<div class="formgrid pAdd"><label>Warframe<input class="field" id="pFrame" list="pFrames" placeholder="e.g. Wisp Prime"></label><label>Slot (1–5)<input class="field" id="pSlot" type="number" min="1" max="5" value="1"></label><label>Colour<select class="select" id="pColor">'+option(P_COLORS,'Crimson')+'</select></label><label><input type="checkbox" id="pTau"> Tauforged</label><label class="wide">Bonus / notes<input class="field" id="pShardNote"></label></div>';
 s+='<datalist id="pFrames">'+mergeEquip().filter(x=>x.category==='Warframes').map(x=>'<option value="'+h(x.name)+'">').join('')+'</datalist><button class="button gold" data-p-act="add-shard">Record installed shard</button><p class="helptext">Installing a shard does not automatically deduct an unverified spare quantity.</p></div>';return s;
 }
