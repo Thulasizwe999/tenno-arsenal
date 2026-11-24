@@ -55,3 +55,20 @@ Within **World & story**, the following additional tabs are available:
 For factual context, see Digital Extremes' [Syndicates support guide](https://support.warframe.com/hc/en-us/articles/38802406697229-Syndicates), [The Vallis Undermind notes](https://www.warframe.com/en/patch-notes/ios/40-0-0), [The Icebind update](https://www.warframe.com/en/patch-notes/psn/44-1-0) and [Devstream 198](https://www.warframe.com/en/news/198).
 
 The public repository contains reference lists and UI code only; **no personal ranks, Standing, mushroom counts, Hex chemistry or mission completion data**.
+
+
+## Progression command centre (home screen)
+
+The **Command centre** replaces the old equipment-only homepage with an overview of real game progress, preserving all original profile data:
+
+- Six quick metrics: mastery, quests, individually recorded star-chart nodes, Syndicates, Intrinsics and immediately actionable activities/equipment
+- Review coverage across quests, Focus abilities, intrinsics, Syndicates, modes and system unlocks — clearly labelled **records reviewed**, not a false overall game completion percentage
+- **Next useful actions** from the session planner and a daily/weekly pulse. Repeatable activities are never automatically marked complete across resets
+- **Quick reference** for saved Syndicate ranks/Standing, Focus schools, Railjack/Drifter Intrinsics and Archon Shard spare quantities/installed count
+- **Efficient in-game verification route:** Orbiter, Navigation, hub vendors and specialised systems. Each progression area shows where to find its in-game information
+- Individual **Mark checked** controls record the date you last verified a section in-game. They do not set any quest, node, activity or collection item to Complete
+- Links into all 12 progression areas without having to remember where the corresponding information lives within the tracker
+
+**Privacy and accuracy:** The home screen is entirely generated from your *browser-local* private profile and the *public* game catalogue. No personal Standing, Focus ranks, shards, task history or review dates are committed to this repository. An empty browser shows an import prompt, never another player's data. Mission completion and new account progress cannot be retrieved automatically from PlayStation. Private profile backups remain the way to migrate between devices.
+
+**Review freshness:** Daily rows older than one day and weekly rows older than seven days are labelled for rechecking. Those are reminders, not a claim to match Warframe's exact reset boundaries.
