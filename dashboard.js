@@ -1,13 +1,14 @@
 'use strict';
 /* Tenno Arsenal progression command centre.
  * Public UI/reference code only. All player records remain in the browser's private profile.
- * Never infer completion from an unknown or historical planet/gear checkmark.
+ * Never infer mastery XP from a Normal-chart completion seed or unverified gear ranks.
  */
 const D_AREAS=[
  {id:'equipment',title:'Equipment & mastery',icon:'⌖',where:'Arsenal · Foundry · Codex equipment',page:'equipment'},
  {id:'mods',title:'Mod collection',icon:'▦',where:'Orbiter Mods console · Companion app',page:'mods'},
  {id:'quests',title:'Story & quests',icon:'✦',where:'Codex → Quests',tab:'quests'},
  {id:'star',title:'Star chart',icon:'◎',where:'Navigation → Star Chart · Steel Path toggle',tab:'star'},
+ {id:'nightwave',title:'Nightwave',icon:'✶',where:'Orbiter Nightwave radio · Nightwave menu',tab:'nightwave'},
  {id:'focus',title:'Focus schools',icon:'◇',where:'Operator → Focus trees',tab:'focus'},
  {id:'shards',title:'Archon Shards',icon:'◈',where:'Helminth console → Archon Shards',tab:'shards'},
  {id:'intrinsics',title:'Intrinsics',icon:'✧',where:'Railjack Intrinsics · Duviri Drifter Intrinsics',tab:'intrinsics'},
@@ -83,7 +84,9 @@ function dRowStats(g){
  };
 }
 function dAreaInfo(id,c){
+ const nw=g.nightwave||{},nwRank=typeof nw.rank==='number'?'Rank '+nw.rank+(nw.prestige?' / Prestige '+nw.prestige:''):'Rank not recorded';
  const map={
+ nightwave:{main:nwRank,sub:(nw.acts||[]).filter(x=>!x.done).length+' active personal Acts · '+Object.values(nw.claimed||{}).filter(Boolean).length+' reward tiers claimed',known:typeof nw.rank==='number'||(nw.acts||[]).length>0},
  equipment:{main:c.mastered+' / '+c.gear+' mastered',sub:c.ownedGear+' owned · '+c.readyLevel+' ready to level',known:c.gear>0},
  mods:{main:c.ownedMods+' / '+c.mods+' owned',sub:c.copies+' copies at recorded ranks',known:c.mods>0},
  quests:{main:c.questsDone+' / '+c.questsTotal+' confirmed complete',sub:(c.questsTotal-c.questsKnown)+' quests not reviewed',known:c.questsKnown>0},
@@ -130,7 +133,7 @@ function dWeekly(g){
  s+='<div class="dListRow"><div class="dListBody"><strong>'+h(v.name)+'</strong><div class="muted tiny">'+(v.daily?'Daily':'Weekly')+' · '+h(status)+' · '+h(dAgeText(v.x.reviewed))+'</div></div>';
  s+='<span class="pill '+(v.stale?'gold':'ok')+'">'+(v.stale?'Check again':'Recently checked')+'</span></div>';
  }
- s+='</div><p class="helptext">A previously completed weekly entry remains a historical snapshot; it is not automatically counted as this week’s completion. Netracells and both Archimedea types share Search Pulses.</p>';
+ s+='</div><p class="muted tiny">Nightwave: '+(typeof g.nightwave?.rank==='number'?'Rank '+g.nightwave.rank:'not checked')+' · '+(g.nightwave?.acts||[]).filter(x=>!x.done).length+' tracked unfinished Acts. <button class="dOpen" data-d-tab="nightwave">Open Nightwave →</button></p><p class="helptext">A previously completed weekly entry remains a saved snapshot; it is not automatically counted as this week’s completion. Netracells and both Archimedea types share Search Pulses.</p>';
  s+='<button class="button small" data-d-expand="weekly">'+(D_UI.weeklyAll?'Show fewer':'Show all daily / weekly')+'</button></section>';return s;
 }
 function dPriorities(g){
@@ -211,18 +214,18 @@ function dCoverage(g,c){
   const pct=a.max?Math.min(100,a.v/a.max*100):0;
   s+='<div class="dCov"><div class="dCovLabel"><span>'+h(a.name)+'</span><strong>'+a.v+' / '+a.max+' recorded</strong></div><div class="progressbar"><div style="width:'+pct.toFixed(1)+'%"></div></div><button class="dOpen" data-d-tab="'+h(a.href)+'">Review →</button></div>';
  }
- s+='<p class="helptext">Mission nodes and shards are shown separately because the number of live nodes and your total installed shard slots can change. A planet-level check from the old sheet is never treated as a fully completed planet.</p></section>';return s;
+ s+='<p class="helptext">Mission nodes and shards are shown separately because the number of live nodes and your total installed shard slots can change. Normal node completion is tracked individually; newly added nodes remain Unknown until you set them.</p></section>';return s;
 }
 function dOverview(){
  if(!state.profileImported){
   return title('Tenno command centre','Your progress at a glance, without visiting every in-game vendor and console')+
    statusNotice()+
-   '<div class="panel"><h2>One home for the whole game</h2><p class="muted">Restore your private SpineCrown profile to see mastery, quest progress, Syndicates, Focus, intrinsics, shards and a session planner here. Unrecorded data stays unknown.</p><p class="muted tiny">This public website contains no personal PlayStation data.</p></div>';
+   '<div class="panel"><h2>One home for the whole game</h2><p class="muted">Restore your private Tenno Arsenal profile to see mastery, quest progress, Syndicates, Focus, intrinsics, shards and a session planner here. Unrecorded data stays unknown.</p><p class="muted tiny">This public website contains no personal PlayStation data.</p></div>';
  }
  const g=dModel(),c=dRowStats(g);
  let s=title('Tenno command centre','Your recorded game progress, what to tackle next, and where to check each system in Warframe',button('Back up progress','backup','','small')+' '+button('Session planner','goto','data-target="planner"','small')+' '+button('Audit mastery','goto','data-target="mastery"','gold'));
  s+=statusNotice();
- s+='<div class="dSnapshot"><span class="pill ok">Private profile loaded</span><span class="muted tiny">Imported snapshot: '+h(state.profile.meta.inventoryAsOf||state.profile.meta.source||'historical spreadsheet')+'</span><span class="muted tiny">Last browser edit: '+h(dDate(state.profile.meta.lastUpdated))+'</span><span class="muted tiny">Catalogue: '+h(catalogueStatusText())+'</span></div>';
+ s+='<div class="dSnapshot"><span class="pill ok">Private profile loaded</span><span class="muted tiny">Your saved Warframe progress · local to this browser</span><span class="muted tiny">Last browser edit: '+h(dDate(state.profile.meta.lastUpdated))+'</span><span class="muted tiny">Catalogue: '+h(catalogueStatusText())+'</span></div>';
  s+='<div class="cards dMetrics">';
  const items=[
  ['Mastery rank',String(state.profile.meta.masteryRank||'—'),c.mastered+' / '+c.gear+' equipment mastered'],
@@ -239,7 +242,7 @@ function dOverview(){
  s+=dQuickReference(g,c);
  s+=dAuditRoute(g);
  s+=dAreas(g,c);
- s+='<div class="panel dSection"><h2>What this dashboard does — and does not do</h2><p class="muted tiny">It summarises the progress you have actually saved in Tenno Arsenal. Your historical workbook data is not a live PlayStation sync. New game catalogue entries can refresh separately, but personal game activity, Standing, Focus, quests and shards require checking in Warframe or a verified import. Click <strong>Mark checked</strong> only after confirming a section in-game; this records the review date without marking content complete. Use <strong>Backup</strong> to preserve your private data before clearing browser storage or switching devices.</p></div>';
+ s+='<div class="panel dSection"><h2>What this dashboard does — and does not do</h2><p class="muted tiny">It summarises the progress you have actually saved in Tenno Arsenal. Your saved profile is not a live PlayStation sync. New game catalogue entries can refresh separately, but personal game activity, Standing, Focus, quests and shards require checking in Warframe or a verified import. Click <strong>Mark checked</strong> only after confirming a section in-game; this records the review date without marking content complete. Use <strong>Backup</strong> to preserve your private data before clearing browser storage or switching devices.</p></div>';
  return s;
 }
 overview=dOverview;
