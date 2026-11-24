@@ -1,7 +1,7 @@
 
 'use strict';
 const P_QUESTS=[
-['Awakening','Story'],["Vor's Prize",'Story'],["Saya's Vigil",'Story'],['Vox Solaris','Story'],['Once Awake','Story'],['Heart of Deimos','Story'],['The Archwing','Story'],['Natah','Story'],['The Second Dream','Story'],['Rising Tide','Story'],['The War Within','Story'],['Chains of Harrow','Story'],['Apostasy Prologue','Story'],['The Sacrifice','Story'],['Prelude to War','Story'],['The New War','Story'],['The Duviri Paradox','Story'],['Jade Shadows','Story'],['Jade Shadows: Constellations','Story'],['Whispers in the Walls','Story'],['The Lotus Eaters','Story'],['The Hex','Story'],['The Old Peace','Story'],['Lua','Prologue to Tau'],['Vessel','Prologue to Tau'],
+['Awakening','Story'],["Vor's Prize",'Story'],['The Teacher','Story'],["Saya's Vigil",'Story'],['Vox Solaris','Story'],['Once Awake','Story'],['Heart of Deimos','Story'],['The Archwing','Story'],['Natah','Story'],['The Second Dream','Story'],['Rising Tide','Story'],['The War Within','Story'],['Chains of Harrow','Story'],['Apostasy Prologue','Story'],['The Sacrifice','Story'],['Prelude to War','Story'],['The New War','Story'],['The Duviri Paradox','Story'],['Jade Shadows','Story'],['Jade Shadows: Constellations','Story'],['Whispers in the Walls','Story'],['The Lotus Eaters','Story'],['The Hex','Story'],['The Old Peace','Story'],['Lua','Prologue to Tau'],['Vessel','Prologue to Tau'],
 ['Howl of the Kubrow','Side'],['A Man of Few Words','Side'],['Stolen Dreams','Side'],['The New Strange','Side'],['Hidden Messages','Side'],['The Limbo Theorem','Side'],['Patient Zero','Side'],['The Jordas Precept','Side'],['Sands of Inaros','Side'],['The Silver Grove','Side'],['The Glast Gambit','Side'],["Octavia's Anthem",'Side'],['The Deadlock Protocol','Side'],['Call of the Tempestarii','Side'],['The Waverider','Side'],['Angels of the Zariman','Side'],['Veilbreaker','Side'],['Mask of the Revenant','Side']];
 const P_SCHOOLS=['Madurai','Vazarin','Naramon','Unairu','Zenurik'];
 const P_FOCUS={
@@ -14,7 +14,7 @@ const P_WAY={Madurai:['Inner Gaze','Eternal Gaze'],Vazarin:['Enduring Tides','Re
 const P_COLORS=['Crimson','Azure','Amber','Violet','Topaz','Emerald'];
 const P_INTR={Railjack:['Tactical','Piloting','Gunnery','Engineering','Command'],Drifter:['Riding','Combat','Opportunity','Endurance']};
 const P_MILESTONES=['Arbitrations unlocked','Steel Path unlocked','Helminth Segment installed','Invigoration Segment installed','Archon Shard Segment installed','Coalescent Fusion Segment installed','The Circuit unlocked','Steel Path Circuit unlocked','Incarnon Genesis unlocked','Kahl Garrison unlocked','Netracells unlocked','Deep Archimedea unlocked','Temporal Archimedea unlocked','The Perita Rebellion unlocked',"Follie's Hunt unlocked"];
-const P_TABS=[['star','Star chart'],['quests','Quests'],['focus','Focus trees'],['shards','Archon Shards'],['intrinsics','Intrinsics'],['milestones','Unlocks']];
+const P_TABS=[['star','Star chart'],['quests','Quests'],['focus','Focus trees'],['shards','Archon Shards'],['helminth','Helminth'],['intrinsics','Intrinsics'],['milestones','Unlocks']];
 const P_STATES=['unknown','locked','available','in-progress','completed'];
 const P_QUEST_STATES=['unknown','not-started','in-progress','completed'];
 const P_UI={tab:'star',chart:'origin',mode:'normal',planet:'Earth',school:'Zenurik',questType:'All',search:'',nodes:(typeof TENNO_MISSION_SEED!=='undefined'?TENNO_MISSION_SEED.slice():[]),loading:false,feed:'Public mission catalogue available'};
@@ -27,6 +27,7 @@ g.quests ||= {};g.extraQuests ||= [];g.nodes ||= {normal:{},steel:{},custom:[]};
 g.nodes.normal ||= {};g.nodes.steel ||= {};g.nodes.custom ||= [];
 g.focus ||= {};for(const sc of P_SCHOOLS){g.focus[sc] ||= {unlocked:null,available:null,spent:null,tektolyst:null,tauronRank:null,nodes:{},custom:[]};g.focus[sc].nodes ||= {};g.focus[sc].custom ||= [];}
 g.shards ||= {spare:{},installed:[]};g.shards.spare ||= {};g.shards.installed ||= [];
+g.helminth ||= {metamorphosis:null,progress:null,nextThreshold:null,unlockedAbilities:null,totalAbilities:null,checkedAt:null};
 g.intrinsics ||= {};for(const typ of Object.keys(P_INTR))g.intrinsics[typ] ||= {};
 g.milestones ||= {};g.extraMilestones ||= [];
 return g;
@@ -70,6 +71,7 @@ if(P_UI.tab==='star')s+=pStar(g);
 if(P_UI.tab==='quests')s+=pQuests(g);
 if(P_UI.tab==='focus')s+=pFocus(g);
 if(P_UI.tab==='shards')s+=pShards(g);
+if(P_UI.tab==='helminth')s+=pHelminth(g);
 if(P_UI.tab==='intrinsics')s+=pIntrinsics(g);
 if(P_UI.tab==='milestones')s+=pMilestones(g);
 return s;
@@ -169,6 +171,22 @@ else s+=g.shards.installedConfirmedAt?'<div class="notice"><strong>No shards ins
 s+='<div class="formgrid pAdd"><label>Warframe<input class="field" id="pFrame" list="pFrames" placeholder="e.g. Wisp Prime"></label><label>Slot (1–5)<input class="field" id="pSlot" type="number" min="1" max="5" value="1"></label><label>Colour<select class="select" id="pColor">'+option(P_COLORS,'Crimson')+'</select></label><label><input type="checkbox" id="pTau"> Tauforged</label><label class="wide">Bonus / notes<input class="field" id="pShardNote"></label></div>';
 s+='<datalist id="pFrames">'+mergeEquip().filter(x=>x.category==='Warframes').map(x=>'<option value="'+h(x.name)+'">').join('')+'</datalist><button class="button gold" data-p-act="add-shard">Record installed shard</button><p class="helptext">Installing a shard does not automatically deduct an unverified spare quantity.</p></div>';return s;
 }
+function pHelminth(g){
+ const a=g.helminth||{};
+ let s='<section class="panel"><h2>Helminth metamorphosis and subsuming</h2><p class="muted tiny">The snapshot shows your Helminth rank and how many abilities are unlocked, but not the identities of every unlocked ability. Your individual Warframe and subsuming records stay separate.</p>';
+ const valid=a.metamorphosis!==null&&a.metamorphosis!==undefined;
+ const unlocked=a.unlockedAbilities??null,total=a.totalAbilities??null,step=a.progress??null,threshold=a.nextThreshold??null;
+ s+='<div class="cards"><div class="metric"><div class="lbl">Metamorphosis</div><div class="val">'+(valid?h(a.metamorphosis):'—')+'</div><div class="note">As shown at the Helminth console</div></div>';
+ s+='<div class="metric"><div class="lbl">Abilities unlocked</div><div class="val">'+(unlocked!==null&&total!==null?h(unlocked)+' / '+h(total):'—')+'</div><div class="note">'+(unlocked!==null&&total!==null?Math.max(0,total-unlocked)+' not unlocked':'Exact ability names not verified')+'</div></div>';
+ s+='<div class="metric"><div class="lbl">Towards next reward</div><div class="val">'+(step!==null&&threshold!==null?h(Number(step).toLocaleString())+' / '+h(Number(threshold).toLocaleString()):'—')+'</div><div class="note">'+(step!==null&&threshold!==null?Math.max(0,threshold-step).toLocaleString()+' remaining':'Unrecorded')+'</div></div></div>';
+ s+='<div class="formgrid">';
+ const fields=[['metamorphosis','Metamorphosis rank'],['progress','Current progress XP'],['nextThreshold','Next reward XP threshold'],['unlockedAbilities','Unlocked abilities'],['totalAbilities','Total available abilities']];
+ for(const [key,label] of fields)s+='<label>'+h(label)+'<input class="field" type="number" min="0" max="100000000" step="1" value="'+(a[key]??'')+'" placeholder="Unknown" data-p-helminth="'+key+'"></label>';
+ s+='</div>';
+ s+='<p class="helptext">Last checked in-game: '+(a.checkedAt?h(new Date(a.checkedAt).toLocaleDateString()):'Not yet confirmed')+'. Abilities unlocked does not identify individual subsumed Warframes. Keep your individual subsuming records in Equipment; do not automatically mark an ability unlocked based on this total.</p>';
+ s+=button('Open equipment / subsuming','goto','data-target="equipment"','small');
+ s+='</section>';return s;
+}
 function pIntrinsics(g){
 let s='<div class="panel"><h2>Individual Intrinsics</h2><p class="muted tiny">Each track ranges from 0 to 10. Unknown remains blank until you check in-game.</p>';
 for(const type of Object.keys(P_INTR)){const legacy=state.profile.progress.intrinsics[type];s+='<h3>'+type+'</h3><p class="helptext">Recorded total: '+h(legacy===undefined?'not recorded':legacy)+' ranks'+(g.intrinsicsUnspent?.[type]!==undefined?' · '+g.intrinsicsUnspent[type]+' unspent points':'')+'.</p><div class="pRanks">';
@@ -229,7 +247,8 @@ else if(el.dataset.pQuest){g.quests[dec(el.dataset.pQuest)]=el.value;save=true;}
 else if(el.dataset.pMilestone){g.milestones[dec(el.dataset.pMilestone)]=el.value;save=true;}
 else if(el.dataset.pIntrinsic){const [type,name]=el.dataset.pIntrinsic.split('|');g.intrinsics[type][name]=el.value==='Unknown'?null:Number(el.value);save=true;}
 else if(el.dataset.pStock){if(el.value==='')delete g.shards.spare[el.dataset.pStock];else g.shards.spare[el.dataset.pStock]=cleanInt(el.value);save=true;}
-else if(el.dataset.pFocusField){const v=g.focus[P_UI.school],field=el.dataset.pFocusField;if(field==='unlocked'||field==='tektolyst'||field==='active')v[field]=el.value===''?null:el.value==='yes';else v[field]=el.value===''?null:Math.min(field==='tauronRank'?5:100000000,cleanInt(el.value));save=true;}
+else if(el.dataset.pHelminth){const fld=el.dataset.pHelminth; if(['metamorphosis','progress','nextThreshold','unlockedAbilities','totalAbilities'].includes(fld)){g.helminth[fld]=el.value===''?null:cleanInt(el.value);g.helminth.checkedAt=new Date().toISOString();save=true;}}
+ else if(el.dataset.pFocusField){const v=g.focus[P_UI.school],field=el.dataset.pFocusField;if(field==='unlocked'||field==='tektolyst'||field==='active')v[field]=el.value===''?null:el.value==='yes';else v[field]=el.value===''?null:Math.min(field==='tauronRank'?5:100000000,cleanInt(el.value));save=true;}
 else if(el.dataset.pFocusNode){const name=dec(el.dataset.pFocusNode),v=g.focus[P_UI.school];v.nodes[name] ||= {};v.nodes[name].rank=el.value===''?null:Math.min(10,cleanInt(el.value));save=true;}
 else if(el.dataset.pWay){const name=dec(el.dataset.pWay),v=g.focus[P_UI.school];v.nodes[name] ||= {};v.nodes[name].unbound=el.checked;save=true;}
 if(save){pSave();toast('Progress saved privately');}
