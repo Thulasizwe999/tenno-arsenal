@@ -91,7 +91,7 @@ function isApply(j){
   p.syndicates.members ||= {};
   const existing=p.syndicates.members[name] ||= {};
   if(IS_HAS(obj,'rank')){const n=IS_N(obj.rank,-2,10);if(n===null)throw Error('Invalid Syndicate rank: '+name);existing.rank=n;}
-  if(IS_HAS(obj,'standing')){const n=IS_N(obj.standing,0,100000000);if(n===null)throw Error('Invalid Syndicate standing: '+name);existing.standing=n;}
+  if(IS_HAS(obj,'standing')){const n=IS_N(obj.standing,-100000,100000000);if(n===null)throw Error('Invalid Syndicate standing: '+name);existing.standing=n;}
   existing.inventoryCheckedAt=j.capturedAt||new Date().toISOString();
   updated++;
  }
