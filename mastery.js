@@ -100,7 +100,7 @@ function mCalc(){
  const rail=mIntrinsic(g,'Railjack',a.official.railjack),drifter=mIntrinsic(g,'Drifter',a.official.drifter);
  const normal=mStar(g,'normal',a),steel=mStar(g,'steel',a);
  const sum=earned+rail.xp+drifter.xp+normal.xp+steel.xp;
- const officialTotal=mNum(a.official.total),sheet=mNum(state.profile.meta?.masteryXP);
+ const officialTotal=mNum(a.official.total),sheet=mNum(state.profile.meta?.previousMasteryXP??state.profile.meta?.masteryXP);
  const derived=mRankTarget(officialTotal??sum);
  missing.sort((a,b)=>b.remaining-a.remaining||a.name.localeCompare(b.name));
  const sheetDelta=sheet===null?null:sum-sheet,gameDelta=officialTotal===null?null:sum-officialTotal;
@@ -129,10 +129,11 @@ function masteryPage(){
  s+='<div class="notice"><strong>Two different numbers:</strong> <em>Calculated XP</em> uses the ranks and progress recorded in Tenno Arsenal, with conservative rank-40 assumptions. <em>Official XP</em> is whatever you verify in your in-game player profile. Previously recorded totals are comparison points, not authoritative live game totals.</div>';
  s+='<div class="cards mStats">';
  s+=mMetric('Calculated mastery',x.sum.toLocaleString(),'Provisional • from saved records');
- s+=mMetric('Previously saved mastery',x.sheet===null?'—':x.sheet.toLocaleString(),'Saved comparison figure');
- s+=mMetric('Official game mastery',x.officialTotal===null?'Not entered':x.officialTotal.toLocaleString(),'Enter your current in-game value');
+ s+=mMetric('Earlier tracked mastery',x.sheet===null?'—':x.sheet.toLocaleString(),'Previous saved XP figure');
+ s+=mMetric('Official game mastery',x.officialTotal===null?'Not entered':x.officialTotal.toLocaleString(),'Verified from your in-game profile');
  s+=mMetric('Next mastery threshold',x.derived.next,(x.derived.remaining).toLocaleString()+' XP remaining • based on '+(x.officialTotal!==null?'official XP':'calculated XP'));
  s+='</div>';
+ if(a.official.breakdown&&Object.keys(a.official.breakdown).length){s+='<section class="panel"><div class="editline"><div><h2>Official in-game mastery breakdown</h2><p class="muted tiny">Exact category XP from the game profile. These values are independent of the estimated item-by-item reconstruction.</p></div></div><div class="tablewrap"><table class="data"><thead><tr><th>Category</th><th>Verified XP</th></tr></thead><tbody>';for(const [name,value] of Object.entries(a.official.breakdown))s+='<tr><td class="name">'+h(name)+'</td><td>'+Number(value).toLocaleString()+'</td></tr>';s+='</tbody></table></div><div class="mTotal"><strong>Total confirmed mastery</strong><strong>'+Object.values(a.official.breakdown).reduce((n,v)=>n+Number(v),0).toLocaleString()+' XP</strong></div></section>';}
  s+='<div class="mColumns"><section class="panel"><h2>XP by source</h2>';
  s+=mLine('Equipment',x.earned,'Mastery earned from equipment ranks');
  s+=mLine('Normal missions & junctions',x.normal.xp,x.normal.source);
