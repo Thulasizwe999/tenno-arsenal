@@ -138,7 +138,12 @@ if(!P_UI.nodes.length)pFetchNodes(false);
 NAV.splice(NAV.findIndex(x=>x[0]==='progress'),1,['progress','◉','World & story']);
 const pOldTopNav=topNav;
 topNav=function(){pOldTopNav();const menu=$('#mobileNav');if(menu&&!menu.querySelector('[data-nav="progress"]')){const el=document.createElement('button');el.dataset.nav='progress';el.className=state.page==='progress'?'active':'';el.innerHTML='<span>◉</span>Story';menu.insertBefore(el,menu.lastElementChild);}};
-const pOldTasks=tasksData;tasksData=function(){const items=pOldTasks(),g=pModel();for(const [name,st] of Object.entries(g.quests))if(st==='in-progress'||st==='not-started')items.push({id:'quest:'+name,name,group:'Quest',action:st==='in-progress'?'Continue quest':'Start quest',detail:'Story progression',priority:st==='in-progress'?2:4});return items.sort((a,b)=>a.priority-b.priority||a.name.localeCompare(b.name));};
+const pOldTasks=tasksData;tasksData=function(){const items=pOldTasks(),g=pModel();
+for(const [name,st] of Object.entries(g.quests))if(st==='in-progress'||st==='not-started')items.push({id:'quest:'+name,name,group:'Quest',action:st==='in-progress'?'Continue quest':'Start quest',detail:'Story progression',priority:st==='in-progress'?2:4});
+const known=new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n]));
+for(const mode of ['normal','steel'])for(const [id,st] of Object.entries(g.nodes[mode]))if(st==='available'||st==='in-progress'){const n=known.get(id);if(n)items.push({id:'story-node:'+mode+':'+id,name:n.name+' ('+n.planet+')',group:mode==='steel'?'Steel Path':'Star chart',action:'Clear mission node',detail:n.type||'',priority:3});}
+for(const [name,st] of Object.entries(g.milestones))if(st==='available'||st==='in-progress')items.push({id:'story-unlock:'+name,name,group:'Game unlock',action:'Complete milestone',detail:st,priority:4});
+return items.sort((a,b)=>a.priority-b.priority||a.name.localeCompare(b.name));};
 document.addEventListener('click',ev=>{
 const tab=ev.target.closest('[data-p-tab]');if(tab){P_UI.tab=tab.dataset.pTab;P_UI.search='';render();return;}
 const school=ev.target.closest('[data-p-school]');if(school){P_UI.school=school.dataset.pSchool;render();return;}
