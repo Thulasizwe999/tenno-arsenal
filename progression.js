@@ -79,7 +79,7 @@ const P_CHARTS=[
  ['railjack','Railjack Proxima','Navigation: Railjack / Empyrean Proxima map'],
  ['1999','Höllvania 1999','Pom-2 → NavNow, Höllvania missions and Faceoff'],
  ['duviri','Duviri','Duviri Experience, Lone Story and Circuit'],
- ['hubs','Hubs & relays','Relay, vendor and hub destinations; not mastery-awarding mission nodes']
+ ['hubs','Hubs & special','Relays, open worlds and special entries that are not standard mission-clear nodes']
 ];
 const P_RAIL_PLANETS=['Earth','Venus','Saturn','Uranus','Neptune','Pluto','Veil'];
 function pChartOf(node){
@@ -87,7 +87,7 @@ function pChartOf(node){
  if(node.id?.startsWith('CrewBattleNode')||node.planet==='Veil')return 'railjack';
  if(node.planet==='Höllvania'||node.planet==='Hollvania')return '1999';
  if(node.planet==='Duviri')return 'duviri';
- if(/hub/i.test(node.id||'')||/relay/i.test(node.type||''))return 'hubs';
+ if(/hub/i.test(node.id||'')||/relay/i.test(node.type||'')||/free roam/i.test(node.type||'')||!String(node.type||'').trim())return 'hubs';
  return 'origin';
 }
 function pAllNodes(g){return [...new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n])).values()];}
@@ -129,7 +129,7 @@ function pStar(g){
  out+='<p class="helptext">'+h(P_UI.feed)+' · '+all.length+' entries in '+h(P_CHARTS.find(x=>x[0]===chart)?.[1]||chart)+'</p>';
  if(chart==='1999')out+='<div class="pOld">1999 entries are mission types and modes from NavNow, not a one-to-one Origin node or mastery-XP list. Completion is left Unknown until confirmed.</div>';
  if(chart==='railjack')out+='<div class="pOld">Railjack Proxima is independent of Origin planets. Normal Railjack missions can be marked complete without affecting Railjack Steel Path.</div>';
- if(chart==='hubs')out+='<div class="pOld">Hubs and relays are destinations, not ordinary mastery-awarding mission nodes.</div>';
+ if(chart==='hubs')out+='<div class="pOld">Hubs, open-world free-roam locations and inactive special entries are displayed separately from missions counted towards Origin System completion.</div>';
  if(visible.length){
   out+='<div class="tablewrap"><table class="data"><thead><tr><th>Node / mode</th><th>Mission</th><th>Status</th></tr></thead><tbody>';
   for(const n of visible.slice(0,150))out+='<tr><td class="name">'+h(n.name)+'</td><td class="muted">'+h(n.type||'—')+'</td><td>'+pStatus(curr[n.id],'data-p-node="'+h(n.id)+'" aria-label="Status for '+h(n.name)+'"')+'</td></tr>';
