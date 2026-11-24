@@ -43,11 +43,83 @@ function pgVerify(j){
  if(typeof changes.completeNormalRailjack!=='boolean')throw Error('Invalid Railjack completion instruction');
  if(!j.captureId||!/^[-a-zA-Z0-9_:]{8,100}$/.test(j.captureId))throw Error('Game progress snapshot needs a unique capture ID');
 }
-isValidate=function(j){const out=PG_ORIG_VALIDATE(j);pgVerify(out);return out;};
+/* Incremental confirmation of Drifter ranks, visible Codex quests and Helminth.
+ * Patches list ONLY confirmed fields; no wholesale reset of earlier progress.
+ */
+function pgValidateDelta(j){
+ const d=j.gameProgressDelta;if(!d)return;
+ if(!d||typeof d!=='object'||Array.isArray(d))throw Error('Progress delta must be an object');
+ if(!j.captureId||!/^[-a-zA-Z0-9_:]{8,100}$/.test(j.captureId))throw Error('Progress delta needs unique capture ID');
+ if(!d.intrinsics&&!d.intrinsicsUnspent&&!d.quests&&!d.helminth)throw Error('No in-game confirmation fields');
+ if(d.intrinsics){
+  if(typeof d.intrinsics!=='object'||Array.isArray(d.intrinsics))throw Error('Invalid Intrinsics values');
+  for(const [group,tracks] of Object.entries(d.intrinsics)){
+   if(!P_INTR[group]||!tracks||typeof tracks!=='object'||Array.isArray(tracks))throw Error('Unknown Intrinsics category');
+   for(const [name,rank] of Object.entries(tracks))
+    if(!P_INTR[group].includes(name)||!Number.isInteger(rank)||rank<0||rank>10)throw Error('Invalid rank for '+group+': '+name);
+  }
+ }
+ if(d.intrinsicsUnspent){
+  if(typeof d.intrinsicsUnspent!=='object'||Array.isArray(d.intrinsicsUnspent))throw Error('Invalid available Intrinsics');
+  for(const [group,n] of Object.entries(d.intrinsicsUnspent))
+   if(!P_INTR[group]||!Number.isSafeInteger(n)||n<0||n>10000000)throw Error('Invalid unspent '+group+' Intrinsics');
+ }
+ if(d.quests){
+  if(typeof d.quests!=='object'||Array.isArray(d.quests))throw Error('Invalid quest progress list');
+  for(const [name,status] of Object.entries(d.quests))
+   if(!name||name.length>160||!P_QUEST_STATES.includes(status))throw Error('Invalid quest status for '+name);
+ }
+ if(d.helminth){
+  const h=d.helminth;
+  if(!h||typeof h!=='object'||Array.isArray(h))throw Error('Invalid Helminth record');
+  for(const field of ['metamorphosis','progress','nextThreshold','unlockedAbilities','totalAbilities'])
+   if(!Number.isSafeInteger(h[field])||h[field]<0||h[field]>100000000)throw Error('Invalid Helminth '+field);
+  if(h.progress>h.nextThreshold||h.unlockedAbilities>h.totalAbilities||h.metamorphosis>100)
+   throw Error('Inconsistent Helminth totals');
+ }
+}
+function pgPreviewDelta(j){
+ const d=j.gameProgressDelta,g=pModel(),rows=[];
+ for(const [group,tracks] of Object.entries(d.intrinsics||{}))
+  for(const [name,rank] of Object.entries(tracks))
+   rows.push(['Intrinsics',group+' · '+name,g.intrinsics[group]?.[name]??'Unknown',rank]);
+ for(const [group,value] of Object.entries(d.intrinsicsUnspent||{}))
+  rows.push(['Intrinsics',group+' unspent points',g.intrinsicsUnspent?.[group]??'Unknown',value]);
+ for(const [name,status] of Object.entries(d.quests||{}))
+  rows.push(['Quest',name,g.quests[name]||'Unknown',status]);
+ if(d.helminth){
+  const prev=g.helminth||{},h=d.helminth;
+  rows.push(['Helminth','Metamorphosis',prev.metamorphosis??'Unknown',h.metamorphosis]);
+  rows.push(['Helminth','Metamorphosis progress',prev.progress===undefined?'Unknown':prev.progress+' / '+prev.nextThreshold,h.progress+' / '+h.nextThreshold]);
+  rows.push(['Helminth','Abilities unlocked',prev.unlockedAbilities===undefined?'Unknown':prev.unlockedAbilities+' / '+prev.totalAbilities,h.unlockedAbilities+' / '+h.totalAbilities]);
+ }
+ return rows;
+}
+function pgApplyDelta(j){
+ const d=j.gameProgressDelta;if(!d)return 0;
+ const g=pModel(),meta=state.profile.meta;
+ let changed=0;
+ for(const [group,tracks] of Object.entries(d.intrinsics||{})){
+  Object.assign(g.intrinsics[group],tracks);
+  changed+=Object.keys(tracks).length;
+  if(P_INTR[group].every(name=>Number.isInteger(g.intrinsics[group][name])))
+   state.profile.progress.intrinsics[group]=String(P_INTR[group].reduce((sum,name)=>sum+g.intrinsics[group][name],0));
+ }
+ g.intrinsicsUnspent ||= {};
+ for(const [group,value] of Object.entries(d.intrinsicsUnspent||{})){g.intrinsicsUnspent[group]=value;changed++;}
+ for(const [name,status] of Object.entries(d.quests||{})){g.quests[name]=status;changed++;}
+ if(d.helminth){g.helminth={...(g.helminth||{}),...d.helminth,checkedAt:j.capturedAt||new Date().toISOString()};changed+=3;}
+ meta.appliedProgressPatches ||= [];
+ meta.appliedProgressPatches.push(j.captureId);
+ meta.lastGameProgressCapture={id:j.captureId,at:j.capturedAt||new Date().toISOString(),sections:Object.keys(d)};
+ meta.lastUpdated=new Date().toISOString();
+ return changed;
+}
+isValidate=function(j){const out=PG_ORIG_VALIDATE(j);pgVerify(out);pgValidateDelta(out);return out;};
 isPreview=function(j){
  if(pgAlreadyImported(j))return [];
  const out=PG_ORIG_PREVIEW(j),p=j.gameProgress;
- if(!p)return out;
+ if(!p){if(j.gameProgressDelta)out.push(...pgPreviewDelta(j));return out;}
  const master=state.profile.meta||{};
  out.push(['Mastery Rank','Official profile',master.masteryRank??'Unknown',p.mastery.rank]);
  out.push(['Mastery XP','Official total',master.masteryXP??'Unknown',p.mastery.totalXp]);
@@ -86,7 +158,7 @@ isApply=function(j){
   if(previousInventory===undefined)delete state.profile.meta.lastInventorySync;
   else state.profile.meta.lastInventorySync=previousInventory;
  }
- const p=j.gameProgress;if(!p)return count;
+ const p=j.gameProgress;if(!p)return count+pgApplyDelta(j);
  const g=pModel(),meta=state.profile.meta;
  if(meta.masteryXP!==p.mastery.totalXp&&meta.previousMasteryXP===undefined)meta.previousMasteryXP=meta.masteryXP??null;
  meta.masteryXP=p.mastery.totalXp;
