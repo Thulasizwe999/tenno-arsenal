@@ -3,6 +3,50 @@
 const P_QUESTS=[
 ['Awakening','Story'],["Vor's Prize",'Story'],['The Teacher','Story'],["Saya's Vigil",'Story'],['Vox Solaris','Story'],['Once Awake','Story'],['Heart of Deimos','Story'],['The Archwing','Story'],['Natah','Story'],['The Second Dream','Story'],['Rising Tide','Story'],['The War Within','Story'],['Chains of Harrow','Story'],['Apostasy Prologue','Story'],['The Sacrifice','Story'],['Prelude to War','Story'],['The New War','Story'],['The Duviri Paradox','Story'],['Jade Shadows','Story'],['Jade Shadows: Constellations','Story'],['Whispers in the Walls','Story'],['The Lotus Eaters','Story'],['The Hex','Story'],['The Old Peace','Story'],['Lua','Prologue to Tau'],['Vessel','Prologue to Tau'],
 ['Howl of the Kubrow','Side'],['A Man of Few Words','Side'],['Stolen Dreams','Side'],['The New Strange','Side'],['Hidden Messages','Side'],['The Limbo Theorem','Side'],['Patient Zero','Side'],['The Jordas Precept','Side'],['Sands of Inaros','Side'],['The Silver Grove','Side'],['The Glast Gambit','Side'],["Octavia's Anthem",'Side'],['The Deadlock Protocol','Side'],['Call of the Tempestarii','Side'],['The Waverider','Side'],['Angels of the Zariman','Side'],['Veilbreaker','Side'],['Mask of the Revenant','Side']];
+/* Public subsumable-ability reference. Player ownership and subsuming states always come from their private equipment profile. */
+const P_HELMINTH_ABILITY_MAP={
+ "Ash": "Shuriken",
+ "Atlas": "Petrify",
+ "Banshee": "Silence",
+ "Baruuk": "Lull",
+ "Caliban": "Sentient Wrath",
+ "Chroma": "Elemental Ward",
+ "Ember": "Fire Blast",
+ "Equinox": "Rest & Rage",
+ "Excalibur": "Radial Blind",
+ "Frost": "Ice Wave",
+ "Gara": "Spectrorage",
+ "Garuda": "Blood Altar",
+ "Gauss": "Thermal Sunder",
+ "Hydroid": "Tempest Barrage",
+ "Inaros": "Desiccation",
+ "Ivara": "Quiver",
+ "Khora": "Ensnare",
+ "Limbo": "Banish",
+ "Loki": "Decoy",
+ "Mag": "Pull",
+ "Mesa": "Shooting Gallery",
+ "Mirage": "Eclipse",
+ "Nekros": "Terrify",
+ "Nezha": "Fire Walker",
+ "Nidus": "Larva",
+ "Nova": "Null Star",
+ "Nyx": "Mind Control",
+ "Oberon": "Smite",
+ "Octavia": "Resonator",
+ "Protea": "Dispensary",
+ "Revenant": "Reave",
+ "Rhino": "Roar",
+ "Saryn": "Molt",
+ "Titania": "Spellbind",
+ "Valkyr": "Warcry",
+ "Vauban": "Tesla Nervos",
+ "Volt": "Shock",
+ "Wisp": "Breach Surge",
+ "Wukong": "Defy",
+ "Xaku": "Xata's Whisper",
+ "Zephyr": "Airburst"
+};
 const P_SCHOOLS=['Madurai','Vazarin','Naramon','Unairu','Zenurik'];
 const P_FOCUS={
 Madurai:['Power Transfer','Void Strike','Void Fuel','Contamination Wave','Distilled Contamination','Chained Sling','Sling Strength','Phoenix Talons','Phoenix Spirit','Inner Gaze','Eternal Gaze'],
@@ -171,9 +215,19 @@ else s+=g.shards.installedConfirmedAt?'<div class="notice"><strong>No shards ins
 s+='<div class="formgrid pAdd"><label>Warframe<input class="field" id="pFrame" list="pFrames" placeholder="e.g. Wisp Prime"></label><label>Slot (1–5)<input class="field" id="pSlot" type="number" min="1" max="5" value="1"></label><label>Colour<select class="select" id="pColor">'+option(P_COLORS,'Crimson')+'</select></label><label><input type="checkbox" id="pTau"> Tauforged</label><label class="wide">Bonus / notes<input class="field" id="pShardNote"></label></div>';
 s+='<datalist id="pFrames">'+mergeEquip().filter(x=>x.category==='Warframes').map(x=>'<option value="'+h(x.name)+'">').join('')+'</datalist><button class="button gold" data-p-act="add-shard">Record installed shard</button><p class="helptext">Installing a shard does not automatically deduct an unverified spare quantity.</p></div>';return s;
 }
+function pHelminthLedger(){
+ const map=P_HELMINTH_ABILITY_MAP,existing=new Map(mergeEquip().filter(x=>x.category==='Warframes').map(x=>[x.name,x]));
+ const rows=Object.entries(map).map(([frame,ability])=>{
+  const found=existing.get(frame),player=state.profile.equipment?.[ek('Warframes',frame)]||found||{};
+  const status=player.subsumed===true||String(player.subsumed).toLowerCase()==='yes'?'confirmed':player.subsumed===false||String(player.subsumed).toLowerCase()==='no'?'not-subsummed':'unknown';
+  return {frame,ability,status};
+ });
+ rows.sort((a,b)=>({confirmed:0,'not-subsummed':1,unknown:2}[a.status]-({confirmed:0,'not-subsummed':1,unknown:2}[b.status])||a.frame.localeCompare(b.frame)));
+ return rows;
+}
 function pHelminth(g){
- const a=g.helminth||{};
- let s='<section class="panel"><h2>Helminth metamorphosis and subsuming</h2><p class="muted tiny">The snapshot shows your Helminth rank and how many abilities are unlocked, but not the identities of every unlocked ability. Your individual Warframe and subsuming records stay separate.</p>';
+ const a=g.helminth||{}, ledger=pHelminthLedger();
+ let s='<section class="panel"><h2>Helminth metamorphosis and subsuming</h2><p class="muted tiny">Subsumable abilities are matched to the Warframes you have marked Subsumed in your private equipment records. Your latest Helminth total is a separate in-game snapshot.</p>';
  const valid=a.metamorphosis!==null&&a.metamorphosis!==undefined;
  const unlocked=a.unlockedAbilities??null,total=a.totalAbilities??null,step=a.progress??null,threshold=a.nextThreshold??null;
  s+='<div class="cards"><div class="metric"><div class="lbl">Metamorphosis</div><div class="val">'+(valid?h(a.metamorphosis):'—')+'</div><div class="note">As shown at the Helminth console</div></div>';
@@ -183,7 +237,16 @@ function pHelminth(g){
  const fields=[['metamorphosis','Metamorphosis rank'],['progress','Current progress XP'],['nextThreshold','Next reward XP threshold'],['unlockedAbilities','Unlocked abilities'],['totalAbilities','Total available abilities']];
  for(const [key,label] of fields)s+='<label>'+h(label)+'<input class="field" type="number" min="0" max="100000000" step="1" value="'+(a[key]??'')+'" placeholder="Unknown" data-p-helminth="'+key+'"></label>';
  s+='</div>';
- s+='<p class="helptext">Last checked in-game: '+(a.checkedAt?h(new Date(a.checkedAt).toLocaleDateString()):'Not yet confirmed')+'. Abilities unlocked does not identify individual subsumed Warframes. Keep your individual subsuming records in Equipment; do not automatically mark an ability unlocked based on this total.</p>';
+ const confirmed=ledger.filter(x=>x.status==='confirmed').length,unsub=ledger.filter(x=>x.status==='not-subsummed').length,unsure=ledger.filter(x=>x.status==='unknown').length;
+ s+='<h3>Warframe subsuming → unlocked abilities</h3>';
+ s+='<p class="muted tiny"><strong>'+confirmed+' abilities confirmed from subsumed Warframes</strong> · '+unsub+' not subsumed · '+unsure+' not recorded, among '+ledger.length+' mapped base frames. These entries reflect your equipment records and automatically update when you toggle a Warframe’s Subsumed status.</p>';
+ s+='<div class="tablewrap"><table class="data"><thead><tr><th>Warframe</th><th>Helminth ability</th><th>From your equipment record</th><th></th></tr></thead><tbody>';
+ for(const x of ledger){const key=enc(ek('Warframes',x.frame));
+  s+='<tr><td class="name">'+h(x.frame)+'</td><td>'+h(x.ability)+'</td><td>'+(x.status==='confirmed'?'<span class="pill ok">Unlocked · confirmed subsume</span>':x.status==='not-subsummed'?'<span class="pill">Not subsumed</span>':'<span class="pill">Not recorded</span>')+'</td><td><button class="button small" data-p-open-frame="'+key+'">Edit</button></td></tr>';
+ }
+ s+='</tbody></table></div>';
+ s+='<p class="helptext">The '+(a.unlockedAbilities??'—')+' / '+(a.totalAbilities??'—')+' Helminth total is from your in-game snapshot and may include Helminth’s own abilities or subsumes acquired since the older equipment record. A difference from '+confirmed+' confirmed frame abilities is not proof that the balance of Warframes is missing. Keep recent changes in Equipment; this table always follows them.</p>';
+ s+='<p class="helptext">Last checked in-game: '+(a.checkedAt?h(new Date(a.checkedAt).toLocaleDateString()):'Not yet confirmed')+'. The confirmed individual ability list is derived from saved subsumed flags rather than guessed from the total.</p>';
  s+=button('Open equipment / subsuming','goto','data-target="equipment"','small');
  s+='</section>';return s;
 }
@@ -227,6 +290,7 @@ return items.sort((a,b)=>a.priority-b.priority||a.name.localeCompare(b.name));};
 document.addEventListener('click',ev=>{
 const tab=ev.target.closest('[data-p-tab]');if(tab){P_UI.tab=tab.dataset.pTab;P_UI.search='';render();return;}
 const chartButton=ev.target.closest('[data-p-chart]');if(chartButton){P_UI.chart=chartButton.dataset.pChart;P_UI.planet=pPlanets(pModel(),P_UI.chart)[0]||'';P_UI.search='';render();return;}
+ const frameButton=ev.target.closest('[data-p-open-frame]');if(frameButton){equipEditor(dec(frameButton.dataset.pOpenFrame));return;}
  const school=ev.target.closest('[data-p-school]');if(school){P_UI.school=school.dataset.pSchool;render();return;}
 const el=ev.target.closest('[data-p-act]');if(!el)return;const g=pModel(),a=el.dataset.pAct;let change=false;
 if(a==='refresh'){pFetchNodes(true);return;}
