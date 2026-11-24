@@ -17,7 +17,7 @@ const P_MILESTONES=['Arbitrations unlocked','Steel Path unlocked','Helminth Segm
 const P_TABS=[['star','Star chart'],['quests','Quests'],['focus','Focus trees'],['shards','Archon Shards'],['intrinsics','Intrinsics'],['milestones','Unlocks']];
 const P_STATES=['unknown','locked','available','in-progress','completed'];
 const P_QUEST_STATES=['unknown','not-started','in-progress','completed'];
-const P_UI={tab:'star',mode:'normal',planet:'Earth',school:'Zenurik',questType:'All',search:'',nodes:(typeof TENNO_MISSION_SEED!=='undefined'?TENNO_MISSION_SEED.slice():[]),loading:false,feed:'Public mission catalogue available'};
+const P_UI={tab:'star',chart:'origin',mode:'normal',planet:'Earth',school:'Zenurik',questType:'All',search:'',nodes:(typeof TENNO_MISSION_SEED!=='undefined'?TENNO_MISSION_SEED.slice():[]),loading:false,feed:'Public mission catalogue available'};
 const P_NODE_KEY='tenno-arsenal-solnodes-v1';
 function pModel(){
 const pr=state.profile.progress|| (state.profile.progress={});
@@ -37,7 +37,7 @@ function pMarkNormalBaseline(force=false){
  if(!state.profileImported||!state.profile||!P_UI.nodes?.length)return 0;
  const g=pModel();
  if(!force&&g.nodes.normalBaseline?.version===1)return 0;
- const all=[...new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n])).values()].filter(n=>n.id&&n.planet&&n.name);
+ const all=[...new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n])).values()].filter(n=>n.id&&n.planet&&n.name&&n.chart!=='1999');
  if(all.length<250)return 0;
  for(const n of all)g.nodes.normal[n.id]='completed';
  g.nodes.normalBaseline={version:1,appliedAt:new Date().toISOString(),count:all.length,nodeIds:all.map(n=>n.id)};
@@ -72,23 +72,70 @@ if(P_UI.tab==='intrinsics')s+=pIntrinsics(g);
 if(P_UI.tab==='milestones')s+=pMilestones(g);
 return s;
 };
-function pAllNodes(g){return [...P_UI.nodes,...g.nodes.custom];}
-function pPlanets(g){
-const bases=['Earth','Venus','Mercury','Mars','Deimos','Phobos','Ceres','Jupiter','Europa','Saturn','Uranus','Neptune','Pluto','Eris','Sedna','Lua','Void','Kuva Fortress','Zariman','Duviri','Höllvania'];
-return [...new Set([...bases,...Object.keys(state.profile.progress.starChart),...Object.keys(state.profile.progress.steelPath),...pAllNodes(g).map(x=>x.planet)])].filter(Boolean).sort();
+const P_CHARTS=[
+ ['origin','Origin System','Navigation: Origin planets and regular mission nodes'],
+ ['railjack','Railjack Proxima','Navigation: Railjack / Empyrean Proxima map'],
+ ['1999','Höllvania 1999','Pom-2 → NavNow, Höllvania missions and Faceoff'],
+ ['duviri','Duviri','Duviri Experience, Lone Story and Circuit'],
+ ['hubs','Hubs & relays','Relay, vendor and hub destinations; not mastery-awarding mission nodes']
+];
+const P_RAIL_PLANETS=['Earth','Venus','Saturn','Uranus','Neptune','Pluto','Veil'];
+function pChartOf(node){
+ if(node.chart)return node.chart;
+ if(node.id?.startsWith('CrewBattleNode')||node.planet==='Veil')return 'railjack';
+ if(node.planet==='Höllvania'||node.planet==='Hollvania')return '1999';
+ if(node.planet==='Duviri')return 'duviri';
+ if(/hub/i.test(node.id||'')||/relay/i.test(node.type||''))return 'hubs';
+ return 'origin';
+}
+function pAllNodes(g){return [...new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n])).values()];}
+function pChartNodes(g,chart){return pAllNodes(g).filter(n=>pChartOf(n)===(chart||P_UI.chart));}
+function pPlanets(g,chart){
+ const list=pChartNodes(g,chart);
+ const names=[...new Set(list.map(x=>x.planet).filter(Boolean))];
+ const favorites=chart==='railjack'?P_RAIL_PLANETS:['Earth','Venus','Mercury','Mars','Deimos','Phobos','Ceres','Jupiter','Europa','Saturn','Uranus','Neptune','Pluto','Eris','Sedna','Lua','Void','Kuva Fortress','Zariman'];
+ return names.sort((a,b)=>{const ia=favorites.indexOf(a),ib=favorites.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b);});
+}
+function pMarkChartNormal(chart){
+ if(!state.profileImported)return 0;
+ const g=pModel(),entries=pChartNodes(g,chart);
+ if(!entries.length)return 0;
+ for(const n of entries)g.nodes.normal[n.id]='completed';
+ g.nodes.chartManualChecks ||= {};
+ g.nodes.chartManualChecks[chart]=new Date().toISOString();
+ pSave();return entries.length;
 }
 function pStar(g){
-pMarkNormalBaseline();
-const data=pAllNodes(g),curr=g.nodes[P_UI.mode],visible=data.filter(n=>n.planet===P_UI.planet&&(!P_UI.search||(n.name+' '+n.type).toLowerCase().includes(P_UI.search.toLowerCase())));
-let s='<div class="panel"><div class="editline"><div><h2>Mission-by-mission star chart</h2><p class="muted tiny">Normal and Steel Path statuses are independent. Your Normal chart was prefilled once; manual changes are retained.</p></div><div class="actions"><button class="button small" data-p-act="refresh">↻ Refresh missions</button>'+(P_UI.mode==='normal'?'<button class="button small" data-p-act="recomplete" title="Overwrite Normal node statuses only after confirmation">Mark all Normal complete</button>':'')+'</div></div>';
-s+='<div class="filters"><select class="select" id="pPlanet">'+option(pPlanets(g),P_UI.planet)+'</select>'+pDrop([['normal','Normal'],['steel','Steel Path']],P_UI.mode,'id="pMode"')+'<input class="search" id="pNodeSearch" value="'+h(P_UI.search)+'" placeholder="Search missions"></div>';
-s+='<p class="helptext">'+h(P_UI.feed)+' · '+data.length+' entries available</p>';
-s+='<div class="pOld">Normal missions were marked completed once from the bundled public list, as requested. Newly discovered nodes stay unknown, and any status you change later is preserved. Steel Path remains independent. <span class="muted">'+(g.nodes.normalBaseline?.appliedAt?'Baseline set '+new Date(g.nodes.normalBaseline.appliedAt).toLocaleDateString()+' · '+g.nodes.normalBaseline.count+' nodes':'Baseline awaiting imported profile')+'</span></div>';
-if(visible.length){s+='<div class="tablewrap"><table class="data"><thead><tr><th>Node</th><th>Mission</th><th>Status</th></tr></thead><tbody>';
-for(const n of visible.slice(0,120))s+='<tr><td class="name">'+h(n.name)+'</td><td class="muted">'+h(n.type||'—')+'</td><td>'+pStatus(curr[n.id],'data-p-node="'+h(n.id)+'" aria-label="Status for '+h(n.name)+'"')+'</td></tr>';
-s+='</tbody></table></div>';}else s+=empty('No mission nodes in this view','Refresh the public node feed, select another destination, or add a custom node.');
-s+='<div class="editline pAdd"><input class="field" id="pNewNode" placeholder="Mission node name"><input class="field" id="pNewMission" placeholder="Mission type"><button class="button small" data-p-act="add-node">Add node</button></div></div>';
-return s;
+ pMarkNormalBaseline();
+ const chart=P_UI.chart,all=pChartNodes(g,chart),planets=pPlanets(g,chart);
+ if(!planets.includes(P_UI.planet))P_UI.planet=planets[0]||'';
+ const curr=g.nodes[P_UI.mode];
+ const visible=all.filter(n=>n.planet===P_UI.planet&&(!P_UI.search||(n.name+' '+n.type).toLowerCase().includes(P_UI.search.toLowerCase())));
+ const completeNormal=all.filter(n=>g.nodes.normal[n.id]==='completed').length;
+ const completeSteel=all.filter(n=>g.nodes.steel[n.id]==='completed').length;
+ const knownNormal=all.filter(n=>g.nodes.normal[n.id]&&g.nodes.normal[n.id]!=='unknown').length;
+ const knownSteel=all.filter(n=>g.nodes.steel[n.id]&&g.nodes.steel[n.id]!=='unknown').length;
+ let out='<div class="panel"><div class="editline"><div><h2>Star charts & mission progress</h2><p class="muted tiny">The Origin System, Railjack, Höllvania, Duviri and hub maps are tracked separately. Normal and Steel Path are independent in each.</p></div><button class="button small" data-p-act="refresh">↻ Refresh public missions</button></div>';
+ out+='<div class="pTabs pChartTabs">'+P_CHARTS.map(([id,label])=>'<button class="button small '+(chart===id?'gold':'ghost')+'" data-p-chart="'+id+'">'+h(label)+'</button>').join('')+'</div>';
+ out+='<p class="muted tiny">'+h(P_CHARTS.find(x=>x[0]===chart)?.[2]||'')+'</p>';
+ out+='<div class="pChartStatus"><span>Normal: <strong>'+completeNormal+' / '+all.length+'</strong> completed <small class="muted">('+knownNormal+' reviewed)</small></span><span>Steel Path: <strong>'+completeSteel+' / '+all.length+'</strong> completed <small class="muted">('+knownSteel+' reviewed)</small></span></div>';
+ const summary=g.originSummary;
+ if(chart==='origin'&&summary){
+  out+='<div class="notice"><strong>Official in-game Origin profile:</strong> Normal '+summary.normal.completed+' / '+summary.normal.total+' nodes ('+summary.normal.xp.toLocaleString()+' / '+summary.normal.maxXp.toLocaleString()+' mastery XP) · Steel Path '+summary.steel.completed+' / '+summary.steel.total+' nodes ('+summary.steel.xp.toLocaleString()+' / '+summary.steel.maxXp.toLocaleString()+' XP). <span class="muted">This is your confirmed profile total, and may differ from the manual node checklist until you identify the missing nodes.</span></div>';
+ }
+ out+='<div class="filters">'+pDrop(planets.map(n=>[n,chart==='railjack'?n+' Proxima':n]),P_UI.planet,'id="pPlanet"')+pDrop([['normal','Normal'],['steel','Steel Path']],P_UI.mode,'id="pMode"')+'<input class="search" id="pNodeSearch" value="'+h(P_UI.search)+'" placeholder="Search missions"></div>';
+ out+='<p class="helptext">'+h(P_UI.feed)+' · '+all.length+' entries in '+h(P_CHARTS.find(x=>x[0]===chart)?.[1]||chart)+'</p>';
+ if(chart==='1999')out+='<div class="pOld">1999 entries are mission types and modes from NavNow, not a one-to-one Origin node or mastery-XP list. Completion is left Unknown until confirmed.</div>';
+ if(chart==='railjack')out+='<div class="pOld">Railjack Proxima is independent of Origin planets. Normal Railjack missions can be marked complete without affecting Railjack Steel Path.</div>';
+ if(chart==='hubs')out+='<div class="pOld">Hubs and relays are destinations, not ordinary mastery-awarding mission nodes.</div>';
+ if(visible.length){
+  out+='<div class="tablewrap"><table class="data"><thead><tr><th>Node / mode</th><th>Mission</th><th>Status</th></tr></thead><tbody>';
+  for(const n of visible.slice(0,150))out+='<tr><td class="name">'+h(n.name)+'</td><td class="muted">'+h(n.type||'—')+'</td><td>'+pStatus(curr[n.id],'data-p-node="'+h(n.id)+'" aria-label="Status for '+h(n.name)+'"')+'</td></tr>';
+  out+='</tbody></table></div>';
+ }else out+=empty('No missions here','Choose another region or add a custom entry.');
+ out+='<div class="editline pAdd"><input class="field" id="pNewNode" placeholder="Node or mission name"><input class="field" id="pNewMission" placeholder="Mission type"><button class="button small" data-p-act="add-node">Add node</button></div>';
+ out+='<div class="editline pAdd"><button class="button small" data-p-act="recomplete">Mark all '+h(P_CHARTS.find(x=>x[0]===chart)?.[1]||chart)+' Normal complete</button><span class="muted tiny">Manual override only; prompts for confirmation and never touches Steel Path.</span></div></div>';
+ return out;
 }
 function pQuests(g){
 const rows=[...P_QUESTS.map(([name,group])=>({name,group})),...g.extraQuests];
@@ -159,11 +206,12 @@ for(const [name,st] of Object.entries(g.milestones))if(st==='available'||st==='i
 return items.sort((a,b)=>a.priority-b.priority||a.name.localeCompare(b.name));};
 document.addEventListener('click',ev=>{
 const tab=ev.target.closest('[data-p-tab]');if(tab){P_UI.tab=tab.dataset.pTab;P_UI.search='';render();return;}
-const school=ev.target.closest('[data-p-school]');if(school){P_UI.school=school.dataset.pSchool;render();return;}
+const chartButton=ev.target.closest('[data-p-chart]');if(chartButton){P_UI.chart=chartButton.dataset.pChart;P_UI.planet=pPlanets(pModel(),P_UI.chart)[0]||'';P_UI.search='';render();return;}
+ const school=ev.target.closest('[data-p-school]');if(school){P_UI.school=school.dataset.pSchool;render();return;}
 const el=ev.target.closest('[data-p-act]');if(!el)return;const g=pModel(),a=el.dataset.pAct;let change=false;
 if(a==='refresh'){pFetchNodes(true);return;}
-if(a==='recomplete'){if(!confirm('Mark all currently listed Normal mission nodes Completed? This will overwrite your manual Normal statuses. Steel Path is unaffected.'))return;const count=pMarkNormalBaseline(true);if(count){render();toast('Marked '+count+' Normal mission nodes complete');}else toast('Load your private profile and mission catalogue first',true);return;}
-if(a==='add-node'){const name=$('#pNewNode')?.value.trim(),type=$('#pNewMission')?.value.trim();if(!name)return;const id='custom:'+slug(P_UI.planet+':'+name);if(!g.nodes.custom.some(x=>x.id===id)){g.nodes.custom.push({id,name,planet:P_UI.planet,type:type||'Custom'});change=true;}}
+if(a==='recomplete'){if(!confirm('Mark all '+P_CHARTS.find(x=>x[0]===P_UI.chart)?.[1]+' Normal entries Completed? This will overwrite manual Normal statuses in this chart only. Steel Path is unaffected.'))return;const count=pMarkChartNormal(P_UI.chart);if(count){render();toast('Marked '+count+' Normal mission nodes complete');}else toast('Load your private profile and mission catalogue first',true);return;}
+if(a==='add-node'){const name=$('#pNewNode')?.value.trim(),type=$('#pNewMission')?.value.trim();if(!name)return;const id='custom:'+slug(P_UI.chart+':'+P_UI.planet+':'+name);if(!g.nodes.custom.some(x=>x.id===id)){g.nodes.custom.push({id,name,planet:P_UI.planet,type:type||'Custom',chart:P_UI.chart});change=true;}}
 if(a==='add-quest'){const name=$('#pNewQuest')?.value.trim();if(name&&!P_QUESTS.some(x=>x[0]===name)&&!g.extraQuests.some(x=>x.name===name)){g.extraQuests.push({name,group:'Custom'});change=true;}}
 if(a==='add-focus'){const name=$('#pNewFocus')?.value.trim(),v=g.focus[P_UI.school];if(name&&!P_FOCUS[P_UI.school].includes(name)&&!v.custom.includes(name)){v.custom.push(name);change=true;}}
 if(a==='add-milestone'){const name=$('#pNewMilestone')?.value.trim();if(name&&!P_MILESTONES.includes(name)&&!g.extraMilestones.includes(name)){g.extraMilestones.push(name);change=true;}}
@@ -185,5 +233,6 @@ else if(el.dataset.pWay){const name=dec(el.dataset.pWay),v=g.focus[P_UI.school];
 if(save){pSave();toast('Progress saved privately');}
 });
 document.addEventListener('input',ev=>{if(ev.target.id!=='pNodeSearch')return;const car=ev.target.selectionStart;P_UI.search=ev.target.value;render();const t=$('#pNodeSearch');t?.focus();try{t?.setSelectionRange(car,car)}catch(e){}});
+const P_CHART_STYLE=document.createElement('style');P_CHART_STYLE.textContent='.pChartStatus{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0;padding:12px;background:var(--raised);border:1px solid var(--line);border-radius:9px;font-size:13px}.pChartTabs{margin-bottom:10px}.pChartTabs button{flex:1 1 140px}';document.head.append(P_CHART_STYLE);
 const P_STYLE=document.createElement('style');P_STYLE.textContent='.pTabs{display:flex;flex-wrap:wrap;gap:8px;margin:17px 0}.pTabs .button{padding:9px 12px}.pOld{padding:11px;border:1px solid var(--line);border-radius:8px;margin-bottom:10px}.pAdd{margin-top:17px;flex-wrap:wrap}.pAdd .field{flex:1;min-width:130px}.pShards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:13px 0}.pShard{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:9px;padding:12px}.pShard strong{color:var(--gold)}.pShard label{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}.pShard input{max-width:110px}.pRanks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:12px 0 22px}.pRanks label{display:flex;flex-direction:column;gap:6px}.pRank{max-width:110px}@media(max-width:750px){.pShards,.pRanks{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:470px){.pShards,.pRanks{grid-template-columns:1fr}.pTabs .button{flex:1 1 40%}}';document.head.append(P_STYLE);
 if(state.page==='progress')render();
