@@ -2,7 +2,7 @@
 /* Nightwave private profile UI and public activity feed. Personal progress never leaves this browser. */
 const N_TYPES=['Daily','Weekly','Elite Weekly','Permanent Weekly','Recovered','Custom'];
 const N_DEFAULT='Amir’s Shockwave';
-const N_UI={feed:[],fetchedAt:null,loading:false,status:'Public Act feed not checked',type:'All',search:''};
+const N_UI={feed:[],fetchedAt:null,attempted:false,loading:false,status:'Public Act feed not checked',type:'All',search:''};
 function nData(){
  const g=pModel();
  g.nightwave ||= {season:N_DEFAULT,rank:null,prestige:null,standing:null,cred:null,claimed:{},acts:[],goal:'',checkedAt:null,archives:[]};
@@ -22,7 +22,7 @@ function nKey(a){
 }
 async function nFetch(show=false){
  if(N_UI.loading)return;
- N_UI.loading=true;N_UI.status='Checking public Nightwave Acts…';if(state.page==='progress'&&P_UI.tab==='nightwave')render();
+ N_UI.loading=true;N_UI.status='Checking public Nightwave Acts…';if(state.page==='nightwave'||(state.page==='progress'&&P_UI.tab==='nightwave'))render();
  try {
   const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),13000);
   let data;
@@ -39,7 +39,7 @@ async function nFetch(show=false){
   N_UI.fetchedAt=new Date().toISOString();N_UI.status=N_UI.feed.length+' public active Acts · checked '+new Date().toLocaleString();
   if(show)toast('Current public Nightwave Acts updated');
  }catch(e){N_UI.status='Live Act feed unavailable. Previously saved Acts are still available.';if(show)toast('Could not load public Nightwave Acts',true);}
- finally{N_UI.loading=false;if(state.page==='progress'&&P_UI.tab==='nightwave')render();}
+ finally{N_UI.loading=false;if(state.page==='nightwave'||(state.page==='progress'&&P_UI.tab==='nightwave'))render();}
 }
 function nInput(key,value,placeholder,max=1000000){
  const val=value===null||value===undefined?'':String(value);
@@ -77,6 +77,7 @@ function nLiveActs(n){
  s+='</section>';return s;
 }
 function nPage(){
+ if(!N_UI.attempted){N_UI.attempted=true;setTimeout(()=>nFetch(false),0);}
  const n=nData(),rank=typeof n.rank==='number'?n.rank:null,prestige=typeof n.prestige==='number'?n.prestige:null,standing=typeof n.standing==='number'?n.standing:null;
  let s=title('Nightwave','Season progression, Acts, reward claims and Cred offerings');
  s+=statusNotice();
@@ -89,7 +90,7 @@ function nPage(){
  s+='<label>Unspent season Cred'+nInput('cred',n.cred,'Unknown')+'</label>';
  s+='</div>';
  const claimed=Object.keys(n.claimed).filter(k=>n.claimed[k]).length;
- s+='<div class="nRibbon"><strong>'+(rank===null?'Rank not recorded':'Rank '+rank+(prestige?' · Prestige '+prestige:''))+'</strong><span>'+(standing===null?'Standing not recorded':standing.toLocaleString()+' / 10,000 Standing to next rank')+'</span><span>'+claimed+' / 30 rewards checked as claimed</span></div>';
+ s+='<div class="nRibbon"><strong>'+(rank===null?'Rank not recorded':'Rank '+rank+(prestige?' · Prestige '+prestige:''))+'</strong><span>'+(standing===null?'Standing not recorded':standing.toLocaleString()+' / 10,000 Standing to next reward tier')+'</span><span>'+claimed+' / 30 rewards checked as claimed</span></div>';
  s+='<label class="nGoal">Current season goal<input class="field" data-n-goal value="'+h(n.goal||'')+'" placeholder="e.g. Hit rank 30; buy Nitain Extract"></label>';
  s+='<p class="helptext">Rank and Cred are recorded manually. Each 10,000 Standing unlocks one Nightwave reward tier. After rank 30, track Prestige separately.</p>';
  s+='<div class="editline"><div><h3>Reward tiers claimed</h3><p class="muted tiny">Tick only rewards actually claimed in-game; reaching a rank does not automatically mark its reward collected.</p></div></div>';
@@ -101,6 +102,7 @@ function nPage(){
  return s;
 }
 P_TABS.push(['nightwave','Nightwave']);
+NAV.splice(NAV.findIndex(x=>x[0]==='progress')+1,0,['nightwave','✶','Nightwave']);
 const nPrevPage=progressPage;
 progressPage=function(){return P_UI.tab==='nightwave'?nPage():nPrevPage();};
 const nPrevTasks=tasksData;
@@ -161,4 +163,4 @@ document.addEventListener('input',e=>{
  const x=document.getElementById('nFindAct');x?.focus();try{x?.setSelectionRange(cursor,cursor)}catch(_){}
 });
 const N_STYLES=document.createElement('style');N_STYLES.textContent='.nNumber{max-width:150px}.nRibbon{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:15px 0;padding:13px;border:1px solid var(--line);border-radius:9px;background:var(--raised)}.nRibbon strong{font-size:16px;color:var(--gold)}.nRibbon span{font-size:12px;color:var(--muted)}.nGoal{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}.nRewards{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:7px;margin:15px 0}.nReward{border:1px solid var(--line);border-radius:8px;padding:8px 3px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;font-size:12px;background:var(--raised)}.nClaimed{border-color:var(--green);color:var(--green)}.nProgress{display:flex;gap:5px;align-items:center}.nProgress input{min-width:60px;width:72px}.nSeasonControls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px}.nAdd{margin:16px 0}.nReward input{margin:0}@media(max-width:650px){.nRewards{grid-template-columns:repeat(6,minmax(0,1fr))}.nProgress input{width:60px}}';document.head.append(N_STYLES);
-if(state.page==='progress'&&P_UI.tab==='nightwave')render();
+if(state.page==='nightwave'||(state.page==='progress'&&P_UI.tab==='nightwave'))render();
