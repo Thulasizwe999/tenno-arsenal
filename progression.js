@@ -1,7 +1,7 @@
 
 'use strict';
 const P_QUESTS=[
-['Awakening','Story'],["Vor's Prize",'Story'],['The Teacher','Story'],["Saya's Vigil",'Story'],['Vox Solaris','Story'],['Once Awake','Story'],['Heart of Deimos','Story'],['The Archwing','Story'],['Natah','Story'],['The Second Dream','Story'],['Rising Tide','Story'],['The War Within','Story'],['Chains of Harrow','Story'],['Apostasy Prologue','Story'],['The Sacrifice','Story'],['Prelude to War','Story'],['The New War','Story'],['The Duviri Paradox','Story'],['Jade Shadows','Story'],['Jade Shadows: Constellations','Story'],['Whispers in the Walls','Story'],['The Lotus Eaters','Story'],['The Hex','Story'],['The Old Peace','Story'],['Lua','Prologue to Tau'],['Vessel','Prologue to Tau'],
+['Awakening','Story'],["Vor's Prize",'Story'],['The Teacher','Story'],["Saya's Vigil",'Story'],['Vox Solaris','Story'],['Once Awake','Story'],['Heart of Deimos','Story'],['The Archwing','Story'],['Natah','Story'],['The Second Dream','Story'],['Rising Tide','Story'],['The War Within','Story'],['Chains of Harrow','Story'],['Apostasy Prologue','Story'],['The Sacrifice','Story'],['Prelude to War','Story'],['The New War','Story'],['The Duviri Paradox','Story'],['Jade Shadows','Story'],['Jade Shadows: Constellations','Story'],['Whispers in the Walls','Story'],['The Lotus Eaters','Story'],['The Hex','Story'],['The Old Peace','Story'],['Prologue to Tau','Story'],
 ['Howl of the Kubrow','Side'],['A Man of Few Words','Side'],['Stolen Dreams','Side'],['The New Strange','Side'],['Hidden Messages','Side'],['The Limbo Theorem','Side'],['Patient Zero','Side'],['The Jordas Precept','Side'],['Sands of Inaros','Side'],['The Silver Grove','Side'],['The Glast Gambit','Side'],["Octavia's Anthem",'Side'],['The Deadlock Protocol','Side'],['Call of the Tempestarii','Side'],['The Waverider','Side'],['Angels of the Zariman','Side'],['Veilbreaker','Side'],['Mask of the Revenant','Side']];
 /* Public subsumable-ability reference. Player ownership and subsuming states always come from their private equipment profile. */
 const P_HELMINTH_ABILITY_MAP={
@@ -60,7 +60,7 @@ const P_INTR={Railjack:['Tactical','Piloting','Gunnery','Engineering','Command']
 const P_MILESTONES=['Arbitrations unlocked','Steel Path unlocked','Helminth Segment installed','Invigoration Segment installed','Archon Shard Segment installed','Coalescent Fusion Segment installed','The Circuit unlocked','Steel Path Circuit unlocked','Incarnon Genesis unlocked','Kahl Garrison unlocked','Netracells unlocked','Deep Archimedea unlocked','Temporal Archimedea unlocked','The Perita Rebellion unlocked',"Follie's Hunt unlocked"];
 const P_TABS=[['star','Star chart'],['quests','Quests'],['focus','Focus trees'],['shards','Archon Shards'],['helminth','Helminth'],['intrinsics','Intrinsics'],['milestones','Unlocks']];
 const P_STATES=['unknown','locked','available','in-progress','completed'];
-const P_QUEST_STATES=['unknown','not-started','in-progress','completed'];
+const P_QUEST_STATES=['unknown','outstanding','not-started','in-progress','completed'];
 const P_UI={tab:'star',chart:'origin',mode:'normal',planet:'Earth',school:'Zenurik',questType:'All',search:'',nodes:(typeof TENNO_MISSION_SEED!=='undefined'?TENNO_MISSION_SEED.slice():[]),loading:false,feed:'Public mission catalogue available'};
 const P_NODE_KEY='tenno-arsenal-solnodes-v1';
 function pModel(){
@@ -90,7 +90,7 @@ function pMarkNormalBaseline(force=false){
 }
 function pSave(){state.profile.meta.lastUpdated=new Date().toISOString();persist();}
 function pDrop(opts,value,attrs=''){return '<select class="select" '+attrs+'>'+opts.map(([v,s])=>'<option value="'+h(v)+'" '+(String(value)===String(v)?'selected':'')+'>'+h(s)+'</option>').join('')+'</select>';}
-function pStatus(v,attrs='',quest=false){return pDrop((quest?P_QUEST_STATES:P_STATES).map(k=>[k,({'unknown':'Unknown / not recorded','not-started':'Not started','in-progress':'In progress','completed':'Completed','available':'Available','locked':'Locked'}[k]||k)]),v||'unknown',attrs);}
+function pStatus(v,attrs='',quest=false){return pDrop((quest?P_QUEST_STATES:P_STATES).map(k=>[k,({'unknown':'Unknown / not recorded','not-started':'Not started','outstanding':'Outstanding / unfinished','in-progress':'In progress','completed':'Completed','available':'Available','locked':'Locked'}[k]||k)]),v||'unknown',attrs);}
 function pOverview(g){
 const quests=[...P_QUESTS.map(x=>x[0]),...g.extraQuests.map(x=>x.name)];
 const qdone=quests.filter(x=>g.quests[x]==='completed').length;
@@ -188,9 +188,9 @@ function pStar(g){
 function pQuests(g){
 const rows=[...P_QUESTS.map(([name,group])=>({name,group})),...g.extraQuests];
 const groups=['All',...new Set(rows.map(x=>x.group))],shown=rows.filter(x=>P_UI.questType==='All'||x.group===P_UI.questType);
-let s='<div class="panel"><div class="editline"><div><h2>Quest journal</h2><p class="muted tiny">Includes 2026 Prologue to Tau chapters. Refer to the in-game Codex for your current status.</p></div><a class="button small" target="_blank" rel="noopener" href="https://www.warframe.com/en/guides/quests">Official quest guide ↗</a></div>';
+let s='<div class="panel"><div class="editline"><div><h2>Quest journal</h2><p class="muted tiny">Prologue to Tau contains the Lua and Vessel chapters. The two outstanding quests are tracked separately from completed stories.</p></div><a class="button small" target="_blank" rel="noopener" href="https://www.warframe.com/en/guides/quests">Official quest guide ↗</a></div>';
 s+='<div class="filters"><select class="select" id="pQuestType">'+option(groups,P_UI.questType)+'</select></div><div class="tablewrap"><table class="data"><thead><tr><th>Quest</th><th>Group</th><th>Status</th></tr></thead><tbody>';
-for(const x of shown)s+='<tr><td class="name">'+h(x.name)+'</td><td class="muted">'+h(x.group)+'</td><td>'+pStatus(g.quests[x.name],'data-p-quest="'+enc(x.name)+'"',true)+'</td></tr>';
+for(const x of shown)s+='<tr><td class="name">'+h(x.name)+(x.name==='Prologue to Tau'?'<small class="muted">Includes Lua and Vessel chapters</small>':'')+'</td><td class="muted">'+h(x.group)+'</td><td>'+pStatus(g.quests[x.name],'data-p-quest="'+enc(x.name)+'"',true)+'</td></tr>';
 s+='</tbody></table></div><div class="editline pAdd"><input class="field" id="pNewQuest" placeholder="Add a quest not listed"><button class="button small" data-p-act="add-quest">Add quest</button></div></div>';return s;
 }
 function pFocus(g){
@@ -282,7 +282,7 @@ NAV.splice(NAV.findIndex(x=>x[0]==='progress'),1,['progress','◉','World & stor
 const pOldTopNav=topNav;
 topNav=function(){pOldTopNav();const menu=$('#mobileNav');if(menu&&!menu.querySelector('[data-nav="progress"]')){const el=document.createElement('button');el.dataset.nav='progress';el.className=state.page==='progress'?'active':'';el.innerHTML='<span>◉</span>Story';menu.insertBefore(el,menu.lastElementChild);}};
 const pOldTasks=tasksData;tasksData=function(){const items=pOldTasks(),g=pModel();
-for(const [name,st] of Object.entries(g.quests))if(st==='in-progress'||st==='not-started')items.push({id:'quest:'+name,name,group:'Quest',action:st==='in-progress'?'Continue quest':'Start quest',detail:'Story progression',priority:st==='in-progress'?2:4});
+for(const [name,st] of Object.entries(g.quests))if(st==='in-progress'||st==='not-started'||st==='outstanding')items.push({id:'quest:'+name,name,group:'Quest',action:st==='in-progress'?'Continue quest':st==='outstanding'?'Complete outstanding quest':'Start quest',detail:'Story progression',priority:st==='in-progress'?2:4});
 const known=new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n]));
 for(const mode of ['normal','steel'])for(const [id,st] of Object.entries(g.nodes[mode]))if(st==='available'||st==='in-progress'){const n=known.get(id);if(n)items.push({id:'story-node:'+mode+':'+id,name:n.name+' ('+n.planet+')',group:mode==='steel'?'Steel Path':'Star chart',action:'Clear mission node',detail:n.type||'',priority:3});}
 for(const [name,st] of Object.entries(g.milestones))if(st==='available'||st==='in-progress')items.push({id:'story-unlock:'+name,name,group:'Game unlock',action:'Complete milestone',detail:st,priority:4});
