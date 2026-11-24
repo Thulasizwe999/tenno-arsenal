@@ -102,3 +102,12 @@ The verified-update importer also accepts a **small, one-time gameProgressDelta*
 All changes appear in the preview before applying, and a private backup is downloaded first. Previously imported mastery, mission statuses, shards, Arcanes, equipment, Mods, Syndicates and notes remain intact. Each verified update has a unique capture ID and is a no-op on subsequent imports, preventing the same screenshot from overwriting later manual edits.
 
 Helminth summary is available under **World & story → Helminth**, with a quick-reference tab on the Command Centre. The app's public code contains no player's personal Helminth, quest or Intrinsics values.
+
+
+## Helminth abilities and quest status
+
+**Helminth:** the app now maps a confirmed subsumed base Warframe to its Helminth ability (for example, Rhino → Roar). The names are public reference data; the **Subsumed** status is always read from the player's private Equipment records. Changes to a frame's subsuming flag update the Helminth list automatically. A private, one-time verified update can also restore positive subsuming flags from previously confirmed player records without modifying owned/mastered flags or component progress. This list is independent of the aggregate unlocked-ability total confirmed at the Helminth console.
+
+**Quests:** the journal tracks Prologue to Tau as a single top-level Codex entry, with Lua and Vessel noted as its chapters rather than independent entries in the overall quest count. Quest statuses include `Outstanding / unfinished` so a quest can be identified as incomplete without claiming that it has never been started. A one-time quest-status merge can mark known completed quests while leaving the two identified outstanding entries clearly actionable.
+
+This repository never contains a player's private list of subsumed Warframes or completed quests.
