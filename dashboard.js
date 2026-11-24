@@ -11,6 +11,7 @@ const D_AREAS=[
  {id:'nightwave',title:'Nightwave',icon:'✶',where:'Orbiter Nightwave radio · Nightwave menu',tab:'nightwave'},
  {id:'focus',title:'Focus schools',icon:'◇',where:'Operator → Focus trees',tab:'focus'},
  {id:'shards',title:'Archon Shards',icon:'◈',where:'Helminth console → Archon Shards',tab:'shards'},
+ {id:'helminth',title:'Helminth progression',icon:'♧',where:'Helminth console → Infuse Ability',tab:'helminth'},
  {id:'intrinsics',title:'Intrinsics',icon:'✧',where:'Railjack Intrinsics · Duviri Drifter Intrinsics',tab:'intrinsics'},
  {id:'syndicates',title:'Syndicates',icon:'♜',where:'Orbiter Syndicate console · faction hub vendors',tab:'syndicates'},
  {id:'activities',title:'Game modes',icon:'⚔',where:'Navigation · weekly activity screens · hubs',tab:'activities'},
@@ -80,7 +81,7 @@ function dRowStats(g){
   intrKnown,intrTotal:intrNames.length,syKnown,syMax,
   actKnown,actTotal:acts.length,actDone,actOpen,
   milestoneKnown,milestoneTotal:milestoneNames.length,hexKnown,hexTotal:hexNames.length,
-  personalArc,personalRivens
+  personalArc,personalRivens,helminth:g.helminth||null
  };
 }
 function dAreaInfo(id,c){
@@ -93,6 +94,7 @@ function dAreaInfo(id,c){
  star:{main:c.originSummary?c.originSummary.normal.completed+' / '+c.originSummary.normal.total+' Normal · '+c.originSummary.steel.completed+' / '+c.originSummary.steel.total+' Steel':c.nodeKnown?c.normalDone+' Normal · '+c.steelDone+' Steel Path':'No individual nodes checked',sub:c.originSummary?'Official in-game Origin count; manual node checklist may differ':c.nodeKnown+' recorded Origin statuses',known:!!c.originSummary||c.nodeKnown>0},
  focus:{main:c.focusSet+' / '+c.focusTotal+' ability ranks recorded',sub:c.focusSchools+' / 5 school unlock states checked',known:c.focusSet>0||c.focusSchools>0},
  shards:{main:c.spareRecorded||c.installedShardsVerified?c.spareCount+' spare · '+c.installations+' installed':c.installations?c.installations+' installations recorded':'Shard inventory not recorded',sub:c.installedShardsVerified?'Installed shards confirmed in-game; spare counts from inventory':c.spareRecorded+' / 12 spare-count fields checked',known:c.spareRecorded>0||c.installations>0||c.installedShardsVerified},
+ helminth:{main:c.helminth?.metamorphosis!=null?'Metamorphosis '+c.helminth.metamorphosis:'Not recorded',sub:c.helminth?.unlockedAbilities!=null?c.helminth.unlockedAbilities+' / '+c.helminth.totalAbilities+' abilities unlocked':'Ability counts not recorded',known:c.helminth?.metamorphosis!=null},
  intrinsics:{main:c.intrKnown+' / '+c.intrTotal+' tracks recorded',sub:'Railjack 5 · Drifter 4',known:c.intrKnown>0},
  syndicates:{main:c.syKnown+' / '+c.syMax+' factions recorded',sub:'Ranks · standing · next target',known:c.syKnown>0},
  activities:{main:c.actKnown+' / '+c.actTotal+' statuses recorded',sub:c.actOpen+' actionable · '+c.actDone+' last marked complete',known:c.actKnown>0},
@@ -110,7 +112,7 @@ function dAreas(g,c){
  const list=D_UI.showAll?D_AREAS:D_AREAS.slice(0,9);
  let out='<section class="panel dSection"><div class="editline"><div><h2>Progression reference</h2><p class="muted tiny">One place to remember where to check each system in-game. Review dates are personal confirmations, not game syncs.</p></div></div><div class="dAreas">';
  for(const a of list){
-  const x=dAreaInfo(a.id,c),checked=g.dashboard.reviewed[a.id];
+  const x=dAreaInfo(a.id,c),checked=g.dashboard.reviewed[a.id]||(a.id==='helminth'?g.helminth?.checkedAt:null);
   out+='<article class="dArea"><div class="dAreaTop"><span class="dAreaIcon">'+h(a.icon)+'</span><div class="dAreaName">'+h(a.title)+'</div>'+(x.known?'<span class="pill ok">Has records</span>':'<span class="pill">Unknown</span>')+'</div>';
   out+='<div class="dMain">'+h(x.main)+'</div><div class="muted tiny">'+h(x.sub)+'</div>';
   out+='<div class="dWhere"><span class="muted tiny">WHERE IN-GAME</span><div>'+h(a.where)+'</div></div>';
@@ -165,7 +167,7 @@ function dAuditRoute(g){
  s+='</div></section>';return s;
 }
 function dQuickReference(g,c){
- const tabs=[['syndicates','Syndicates'],['focus','Focus'],['intrinsics','Intrinsics'],['shards','Shards']];
+ const tabs=[['syndicates','Syndicates'],['focus','Focus'],['intrinsics','Intrinsics'],['shards','Shards'],['helminth','Helminth']];
  let s='<section class="panel dSection"><div class="editline"><div><h2>Quick-reference values</h2><p class="muted tiny">Your last saved numbers, so you do not need to visit each in-game menu just to remember them.</p></div></div>';
  s+='<div class="dRefTabs">'+tabs.map(([key,text])=>'<button class="button small '+(D_UI.reference===key?'gold':'ghost')+'" data-d-ref="'+key+'">'+text+'</button>').join('')+'</div>';
  let to='syndicates';
@@ -196,6 +198,9 @@ function dQuickReference(g,c){
    s+='<div class="dRefRow"><strong>'+h(color)+'</strong><span>Standard '+(dRecorded(base)?h(base):'—')+'</span><span>Tau '+(dRecorded(tau)?h(tau):'—')+'</span><span>Installed '+inUse+'</span></div>';
   }
   s+='</div>';to='shards';
+ }else if(D_UI.reference==='helminth'){
+  const x=g.helminth||{};
+  s+='<div class="dRefRows"><div class="dRefRow"><strong>Metamorphosis</strong><span>'+(x.metamorphosis??'Not recorded')+'</span></div><div class="dRefRow"><strong>Abilities unlocked</strong><span>'+(x.unlockedAbilities??'—')+' / '+(x.totalAbilities??'—')+'</span></div><div class="dRefRow"><strong>Progress to reward</strong><span>'+(x.progress!=null?Number(x.progress).toLocaleString():'—')+' / '+(x.nextThreshold!=null?Number(x.nextThreshold).toLocaleString():'—')+'</span></div></div>';to='helminth';
  }
  s+='<div class="dShow">'+dJumpButton({tab:to},'Update values')+'</div></section>';
  return s;
