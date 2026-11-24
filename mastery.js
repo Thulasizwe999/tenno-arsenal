@@ -63,15 +63,15 @@ function mStar(g,mode,a){
  }
  const completed=Object.entries(g.nodes?.[mode]||{}).filter(([,v])=>v==='completed');
  const refs=new Map([...(P_UI.nodes||[]),...(g.nodes.custom||[])].map(node=>[node.id,node]));
- let nodeXp=0,unvalued=[],notCovered=0;
+ let nodeXp=0,unvalued=[],nodeRows=[],notCovered=0;
  for(const [id] of completed){
   const node=refs.get(id),region=node?.planet||'',covered=regionMap[region]===true;
   if(covered)continue;
-  notCovered++;
+  notCovered++;nodeRows.push({id,name:node?.name||id,planet:region});
   if(mHas(a.nodeXp[mode][id]))nodeXp+=mNum(a.nodeXp[mode][id]);
   else unvalued.push({id,name:node?.name||id,planet:region});
  }
- return {xp:mHas(official)?mNum(official):historical+nodeXp,source:mHas(official)?'Verified game-profile XP':checked?'Historical region XP + individually valued nodes':'Individually valued nodes only',historical,checked,completedCount:completed.length,notCovered,unvalued,usedOfficial:mHas(official),provisional:!mHas(official)};
+ return {xp:mHas(official)?mNum(official):historical+nodeXp,source:mHas(official)?'Verified game-profile XP':checked?'Historical region XP + individually valued nodes':'Individually valued nodes only',historical,checked,completedCount:completed.length,notCovered,nodeRows,unvalued,usedOfficial:mHas(official),provisional:!mHas(official)};
 }
 function mRankTarget(total){
  if(!Number.isFinite(total)||total<0)return {rank:'—',next:'—',remaining:0};
@@ -146,6 +146,16 @@ function masteryPage(){
  s+=x.sheetDelta===null?'<div class="mCompare">No original workbook XP available.</div>':'<div class="mCompare"><strong>Versus original sheet</strong><span class="'+(x.sheetDelta?'mWarning':'mGood')+'">'+(x.sheetDelta>0?'+':'')+x.sheetDelta.toLocaleString()+' XP</span></div>';
  s+=x.gameDelta===null?'<div class="mCompare"><strong>Versus official profile</strong><span class="muted">Not entered yet</span></div>':'<div class="mCompare"><strong>Versus official profile</strong><span class="'+(x.gameDelta?'mWarning':'mGood')+'">'+(x.gameDelta>0?'+':'')+x.gameDelta.toLocaleString()+' XP</span></div>';
  s+='<p class="muted tiny">The original March 2026 workbook was '+(x.sheetDelta===null?'not available':'reconstructed as '+x.sheet.toLocaleString()+' XP')+'. Its 14 regional mission weights total 27,519 XP; those are not a live Warframe 2026 node catalogue.</p>';
+ const sourceCompare=[['Equipment',x.earned,a.official.equipment],['Normal missions',x.normal.xp,a.official.normal],['Steel Path',x.steel.xp,a.official.steel],['Railjack Intrinsics',x.rail.xp,a.official.railjack],['Drifter Intrinsics',x.drifter.xp,a.official.drifter]];
+ if(sourceCompare.some(row=>mHas(row[2]))){
+  s+='<h3>Official XP differences by source</h3><div class="mSourceCompare">';
+  for(const [label,calc,official] of sourceCompare){
+   if(!mHas(official))continue;
+   const delta=calc-mNum(official);
+   s+='<div class="mCompare"><strong>'+h(label)+'</strong><span class="'+(delta?'mWarning':'mGood')+'">'+(delta>0?'+':'')+delta.toLocaleString()+' XP</span></div>';
+  }
+  s+='</div>';
+ }
  s+='<a href="'+M_REF+'" target="_blank" rel="noopener">Reference: Warframe mastery calculation ↗</a></section></div>';
  s+='<section class="panel"><h2>Check against your in-game profile</h2><p class="muted tiny">Enter the XP shown in your game profile. Blank means unknown, including separate mastery categories. These fields never overwrite your imported mastery number or equipment history.</p><div class="mInputs">';
  const inputs=[
@@ -175,10 +185,10 @@ function masteryPage(){
  s+='</section>';
  s+='<section class="panel"><h2>Mission mastery verification</h2><p class="muted tiny">The 2025 tracker stored 14 weighted destination checkmarks. For missions added later or missions not covered by those historical region totals, individual node completion is not enough: its awarded mastery XP must be known. Use your game-profile XP above for the most reliable result.</p>';
  s+='<div class="mColumns"><div><strong>Normal star chart</strong><p class="muted tiny">'+x.normal.checked+' historical regions checked · '+x.normal.historical.toLocaleString()+' old XP · '+x.normal.completedCount+' individual nodes recorded</p></div><div><strong>Steel Path</strong><p class="muted tiny">'+x.steel.checked+' historical regions checked · '+x.steel.historical.toLocaleString()+' old XP · '+x.steel.completedCount+' individual nodes recorded</p></div></div>';
- const unvalued=[...x.normal.unvalued.map(y=>({...y,mode:'normal'})),...x.steel.unvalued.map(y=>({...y,mode:'steel'}))];
- if(unvalued.length){
+ const nodeRows=[...x.normal.nodeRows.map(y=>({...y,mode:'normal'})),...x.steel.nodeRows.map(y=>({...y,mode:'steel'}))];
+ if(nodeRows.length){
  s+='<div class="tablewrap"><table class="data"><thead><tr><th>Completed node</th><th>Chart</th><th>Verified mastery XP</th></tr></thead><tbody>';
- for(const row of unvalued.slice(0,80))s+='<tr><td class="name">'+h(row.name)+'<small class="muted">'+h(row.planet||'Unknown planet')+'</small></td><td>'+h(row.mode==='normal'?'Normal':'Steel Path')+'</td><td><input class="field mSmall" type="number" min="0" step="1" placeholder="Unknown" data-m-node="'+h(row.mode+'|'+row.id)+'" value="'+mIn(a.nodeXp[row.mode][row.id])+'"></td></tr>';
+ for(const row of nodeRows.slice(0,80))s+='<tr><td class="name">'+h(row.name)+'<small class="muted">'+h(row.planet||'Unknown planet')+'</small></td><td>'+h(row.mode==='normal'?'Normal':'Steel Path')+'</td><td><input class="field mSmall" type="number" min="0" step="1" placeholder="Unknown" data-m-node="'+h(row.mode+'|'+row.id)+'" value="'+mIn(a.nodeXp[row.mode][row.id])+'"></td></tr>';
  s+='</tbody></table></div>';
  }
  s+='<p class="helptext">Warning: Normal/Steel mission XP cannot be calculated exactly from node names or a planet checkbox alone. A future live node-XP dataset could improve this. The historical 27,519 XP baseline may differ from current obtainable mission XP.</p></section>';
