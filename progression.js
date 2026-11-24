@@ -17,7 +17,7 @@ const P_MILESTONES=['Arbitrations unlocked','Steel Path unlocked','Helminth Segm
 const P_TABS=[['star','Star chart'],['quests','Quests'],['focus','Focus trees'],['shards','Archon Shards'],['intrinsics','Intrinsics'],['milestones','Unlocks']];
 const P_STATES=['unknown','locked','available','in-progress','completed'];
 const P_QUEST_STATES=['unknown','not-started','in-progress','completed'];
-const P_UI={tab:'star',mode:'normal',planet:'Earth',school:'Zenurik',questType:'All',search:'',nodes:[],loading:false,feed:'Mission-node list not checked'};
+const P_UI={tab:'star',mode:'normal',planet:'Earth',school:'Zenurik',questType:'All',search:'',nodes:(typeof TENNO_MISSION_SEED!=='undefined'?TENNO_MISSION_SEED.slice():[]),loading:false,feed:'Public mission catalogue available'};
 const P_NODE_KEY='tenno-arsenal-solnodes-v1';
 function pModel(){
 const pr=state.profile.progress|| (state.profile.progress={});
@@ -30,6 +30,18 @@ g.shards ||= {spare:{},installed:[]};g.shards.spare ||= {};g.shards.installed ||
 g.intrinsics ||= {};for(const typ of Object.keys(P_INTR))g.intrinsics[typ] ||= {};
 g.milestones ||= {};g.extraMilestones ||= [];
 return g;
+}
+/* One-time requested baseline: mark the current public Normal chart complete.
+   Record its exact node IDs so future additions remain unknown. Manual changes are never overwritten on reload. */
+function pMarkNormalBaseline(force=false){
+ if(!state.profileImported||!state.profile||!P_UI.nodes?.length)return 0;
+ const g=pModel();
+ if(!force&&g.nodes.normalBaseline?.version===1)return 0;
+ const all=[...new Map([...P_UI.nodes,...g.nodes.custom].map(n=>[n.id,n])).values()].filter(n=>n.id&&n.planet&&n.name);
+ if(all.length<250)return 0;
+ for(const n of all)g.nodes.normal[n.id]='completed';
+ g.nodes.normalBaseline={version:1,appliedAt:new Date().toISOString(),count:all.length,nodeIds:all.map(n=>n.id)};
+ pSave();return all.length;
 }
 function pSave(){state.profile.meta.lastUpdated=new Date().toISOString();persist();}
 function pDrop(opts,value,attrs=''){return '<select class="select" '+attrs+'>'+opts.map(([v,s])=>'<option value="'+h(v)+'" '+(String(value)===String(v)?'selected':'')+'>'+h(s)+'</option>').join('')+'</select>';}
@@ -66,12 +78,13 @@ const bases=['Earth','Venus','Mercury','Mars','Deimos','Phobos','Ceres','Jupiter
 return [...new Set([...bases,...Object.keys(state.profile.progress.starChart),...Object.keys(state.profile.progress.steelPath),...pAllNodes(g).map(x=>x.planet)])].filter(Boolean).sort();
 }
 function pStar(g){
+pMarkNormalBaseline();
 const data=pAllNodes(g),curr=g.nodes[P_UI.mode],visible=data.filter(n=>n.planet===P_UI.planet&&(!P_UI.search||(n.name+' '+n.type).toLowerCase().includes(P_UI.search.toLowerCase())));
 const legacy=state.profile.progress[P_UI.mode==='steel'?'steelPath':'starChart'][P_UI.planet];
-let s='<div class="panel"><div class="editline"><div><h2>Mission-by-mission star chart</h2><p class="muted tiny">Normal and Steel Path statuses are independent. A planet-level check does not automatically complete its nodes.</p></div><button class="button small" data-p-act="refresh">↻ Refresh missions</button></div>';
+let s='<div class="panel"><div class="editline"><div><h2>Mission-by-mission star chart</h2><p class="muted tiny">Normal and Steel Path statuses are independent. Your Normal chart was prefilled once; manual changes are retained.</p></div><div class="actions"><button class="button small" data-p-act="refresh">↻ Refresh missions</button>'+(P_UI.mode==='normal'?'<button class="button small" data-p-act="recomplete" title="Overwrite Normal node statuses only after confirmation">Mark all Normal complete</button>':'')+'</div></div>';
 s+='<div class="filters"><select class="select" id="pPlanet">'+option(pPlanets(g),P_UI.planet)+'</select>'+pDrop([['normal','Normal'],['steel','Steel Path']],P_UI.mode,'id="pMode"')+'<input class="search" id="pNodeSearch" value="'+h(P_UI.search)+'" placeholder="Search missions"></div>';
 s+='<p class="helptext">'+h(P_UI.feed)+' · '+data.length+' entries available</p>';
-s+='<div class="pOld">Old spreadsheet: '+(legacy===true?'This destination was checked complete':legacy===false?'Not checked complete':'No historical planet status')+'. <span class="muted">Individual nodes remain unknown until confirmed.</span></div>';
+s+='<div class="pOld">Normal missions were marked completed once from the bundled public list, as requested. Newly discovered nodes stay unknown, and any status you change later is preserved. Steel Path remains independent. <span class="muted">'+(g.nodes.normalBaseline?.appliedAt?'Baseline set '+new Date(g.nodes.normalBaseline.appliedAt).toLocaleDateString()+' · '+g.nodes.normalBaseline.count+' nodes':'Baseline awaiting imported profile')+'</span></div>';
 if(visible.length){s+='<div class="tablewrap"><table class="data"><thead><tr><th>Node</th><th>Mission</th><th>Status</th></tr></thead><tbody>';
 for(const n of visible.slice(0,120))s+='<tr><td class="name">'+h(n.name)+'</td><td class="muted">'+h(n.type||'—')+'</td><td>'+pStatus(curr[n.id],'data-p-node="'+h(n.id)+'" aria-label="Status for '+h(n.name)+'"')+'</td></tr>';
 s+='</tbody></table></div>';}else s+=empty('No mission nodes in this view','Refresh the public node feed, select another destination, or add a custom node.');
@@ -110,7 +123,7 @@ s+='<datalist id="pFrames">'+mergeEquip().filter(x=>x.category==='Warframes').ma
 }
 function pIntrinsics(g){
 let s='<div class="panel"><h2>Individual Intrinsics</h2><p class="muted tiny">Each track ranges from 0 to 10. Unknown remains blank until you check in-game.</p>';
-for(const type of Object.keys(P_INTR)){const legacy=state.profile.progress.intrinsics[type];s+='<h3>'+type+'</h3><p class="helptext">Legacy workbook total: '+h(legacy===undefined?'not recorded':legacy)+' (preserved, not distributed)</p><div class="pRanks">';
+for(const type of Object.keys(P_INTR)){const legacy=state.profile.progress.intrinsics[type];s+='<h3>'+type+'</h3><p class="helptext">Previously recorded total: '+h(legacy===undefined?'not recorded':legacy)+' (kept until you enter individual ranks)</p><div class="pRanks">';
 for(const name of P_INTR[type]){const val=g.intrinsics[type][name];s+='<label>'+name+'<select class="select" data-p-intrinsic="'+type+'|'+name+'">'+option(['Unknown',...Array.from({length:11},(_,i)=>String(i))],val===null||val===undefined?'Unknown':String(val))+'</select></label>';}s+='</div>';}
 s+='</div>';return s;
 }
@@ -127,14 +140,15 @@ if(!response.ok)throw Error(String(response.status));
 const raw=await response.json(),found=[];
 for(const [id,obj] of Object.entries(raw)){const match=String(obj.value||'').match(/^(.+?) \(([^)]+)\)$/);if(!match||/Ancient Retribution/i.test(obj.type||''))continue;found.push({id,name:match[1],planet:match[2],type:obj.type||''});}
 if(found.length<80)throw Error('Unexpected mission data');
-P_UI.nodes=found;P_UI.feed=found.length+' mission nodes loaded · '+new Date().toLocaleDateString();
+P_UI.nodes=[...new Map([...P_UI.nodes,...found].map(n=>[n.id,n])).values()];P_UI.feed=P_UI.nodes.length+' mission nodes loaded · '+new Date().toLocaleDateString();
+pMarkNormalBaseline();
 try{localStorage.setItem(P_NODE_KEY,JSON.stringify({at:Date.now(),nodes:found}))}catch(e){}
 if(showToast)toast('Mission list updated');
 }catch(e){P_UI.feed='Live mission list unavailable; saved nodes and manual entries still work';if(showToast)toast('Mission data not available',true)}
 finally{P_UI.loading=false;if(state.page==='progress')render();}
 }
-const pCache=loadJSON(P_NODE_KEY);if(pCache?.nodes?.length){P_UI.nodes=pCache.nodes;P_UI.feed=pCache.nodes.length+' cached mission nodes';}
-if(!P_UI.nodes.length)pFetchNodes(false);
+const pCache=loadJSON(P_NODE_KEY);if(pCache?.nodes?.length){P_UI.nodes=[...new Map([...P_UI.nodes,...pCache.nodes].map(n=>[n.id,n])).values()];P_UI.feed=P_UI.nodes.length+' mission nodes (bundled + cached)';}
+if(P_UI.nodes.length){pMarkNormalBaseline();pFetchNodes(false);}else pFetchNodes(false);
 NAV.splice(NAV.findIndex(x=>x[0]==='progress'),1,['progress','◉','World & story']);
 const pOldTopNav=topNav;
 topNav=function(){pOldTopNav();const menu=$('#mobileNav');if(menu&&!menu.querySelector('[data-nav="progress"]')){const el=document.createElement('button');el.dataset.nav='progress';el.className=state.page==='progress'?'active':'';el.innerHTML='<span>◉</span>Story';menu.insertBefore(el,menu.lastElementChild);}};
@@ -149,6 +163,7 @@ const tab=ev.target.closest('[data-p-tab]');if(tab){P_UI.tab=tab.dataset.pTab;P_
 const school=ev.target.closest('[data-p-school]');if(school){P_UI.school=school.dataset.pSchool;render();return;}
 const el=ev.target.closest('[data-p-act]');if(!el)return;const g=pModel(),a=el.dataset.pAct;let change=false;
 if(a==='refresh'){pFetchNodes(true);return;}
+if(a==='recomplete'){if(!confirm('Mark all currently listed Normal mission nodes Completed? This will overwrite your manual Normal statuses. Steel Path is unaffected.'))return;const count=pMarkNormalBaseline(true);if(count){render();toast('Marked '+count+' Normal mission nodes complete');}else toast('Load your private profile and mission catalogue first',true);return;}
 if(a==='add-node'){const name=$('#pNewNode')?.value.trim(),type=$('#pNewMission')?.value.trim();if(!name)return;const id='custom:'+slug(P_UI.planet+':'+name);if(!g.nodes.custom.some(x=>x.id===id)){g.nodes.custom.push({id,name,planet:P_UI.planet,type:type||'Custom'});change=true;}}
 if(a==='add-quest'){const name=$('#pNewQuest')?.value.trim();if(name&&!P_QUESTS.some(x=>x[0]===name)&&!g.extraQuests.some(x=>x.name===name)){g.extraQuests.push({name,group:'Custom'});change=true;}}
 if(a==='add-focus'){const name=$('#pNewFocus')?.value.trim(),v=g.focus[P_UI.school];if(name&&!P_FOCUS[P_UI.school].includes(name)&&!v.custom.includes(name)){v.custom.push(name);change=true;}}
