@@ -139,8 +139,8 @@ function isApply(j){
 const IS_OLD_SETTINGS=settingsPage;
 function isMergeSection(){
  let s='';
- s+='<section class="panel"><h2>Merge a verified inventory capture</h2><p class="muted tiny">For Companion-app recordings reconciled in ChatGPT. Only explicitly verified Arcanes, shard quantities, faction Standing, Nightwave and equipment fields are updated; your quests, mastery, mission nodes, mods, manual notes and other progress stay untouched. This is <strong>not</strong> a full-profile restore.</p>';
- s+='<input type="file" id="isPatchFile" accept=".json,application/json" style="display:none"><button class="button gold" data-is-action="browse">Choose inventory update JSON</button>';
+ s+='<section class="panel"><h2>Merge a verified inventory or game-progress update</h2><p class="muted tiny">Import a reviewed Companion-app inventory capture or in-game progress confirmation. The preview shows only fields being changed. Unmentioned equipment, mods, missions, quests, notes and other records are preserved. This is <strong>not</strong> a full-profile restore.</p>';
+ s+='<input type="file" id="isPatchFile" accept=".json,application/json" style="display:none"><button class="button gold" data-is-action="browse">Choose verified update JSON</button>';
  if(IS_PENDING){
   const rows=isPreview(IS_PENDING);
   s+='<div class="notice"><strong>Ready to review:</strong> '+rows.length+' observed changes from '+h(IS_FILE_NAME)+(IS_PENDING.capturedAt?' · '+h(IS_PENDING.capturedAt):'')+'. Nothing has been applied yet.</div>';
@@ -148,7 +148,7 @@ function isMergeSection(){
   for(const x of rows.slice(0,150))s+='<tr>'+x.map(v=>'<td>'+h(v)+'</td>').join('')+'</tr>';
   s+='</tbody></table></div>';
   if(rows.length>150)s+='<p class="muted tiny">Showing first 150 changes; all verified patch fields will be applied.</p>';
-  s+='<p class="helptext">A private backup is downloaded before this merge. Unknown/unseen records are not deleted. Confirm only if the shown values were checked from your recording.</p>';
+  s+='<p class="helptext">A private backup is downloaded before this merge. Unseen records are not deleted, and already applied updates will not run twice. Apply only changes verified against the game or Companion recording.</p>';
   s+='<button class="button gold" data-is-action="apply">Back up & apply verified values</button> <button class="button small" data-is-action="cancel">Cancel</button>';
  }
  s+='</section>';
@@ -157,7 +157,7 @@ function isMergeSection(){
 settingsPage=function(){return IS_OLD_SETTINGS()+isMergeSection();};
 function inventoryPage(){
  const actions=button('Back to Command Centre','goto','data-target="overview"','small')+' '+button('Settings','goto','data-target="settings"','small');
- return title('Import inventory','Merge the verified Companion app recording without replacing your existing progress',actions)+statusNotice()+isMergeSection();
+ return title('Import updates','Safely merge verified Companion inventory and in-game progression',actions)+statusNotice()+isMergeSection();
 }
 NAV.splice(NAV.findIndex(x=>x[0]==='settings'),0,['inventory','⇧','Import inventory']);
 document.addEventListener('DOMContentLoaded',()=>{
