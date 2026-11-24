@@ -1,22 +1,27 @@
-# Tenno Arsenal — Complete Warframe tracker
+# Tenno Arsenal — complete Warframe tracker
 
-A mobile-friendly web app for **all sections** of the SpineCrown tracker: Warframes, primary/secondary/melee weapons, companions, adversary and robotic weapons, vehicles, Necramechs, Arch-Guns/Melees, amps and modular items; equipment mastery, owned state, blueprints, crafting components and subsuming; mod duplicates and individual upgrade ranks; Arcanes; Rivens; star chart and Steel Path; intrinsics; a session planner; trading; and notes.
+A mobile-friendly, single-page Warframe mastery, inventory and farming tracker.
 
-## Getting started
+## Publish and use
 
-1. Enable GitHub Pages in **Settings → Pages → Deploy from a branch → main → /(root) → Save**.
-2. Open **https://thulasizwe999.github.io/tenno-arsenal/**.
-3. Use **Restore collection** once and select the separately supplied `Tenno_Arsenal_Full_Private_Import.json`. **Do not upload that file here.**
-4. Use **Backup** periodically to save your player progress privately (e.g., OneDrive). Your changes are stored in the browser, not in this repository.
+This repository contains a **self-contained `index.html`**, a small icon, install manifest and optional service worker. To enable the permanent site, open **Settings → Pages** in GitHub, choose **Deploy from a branch**, branch **main**, folder **/(root)**, then Save. The site should become available at:
 
-## Current game catalogue
+https://thulasizwe999.github.io/tenno-arsenal/
 
-The public starter catalogue is built into `index.html`. When online, the app checks the [WFCD warframe-items](https://github.com/WFCD/warframe-items) item catalogue approximately once per 24 hours, and offers a manual **Update game data** button. New items are merged without overwriting saved ownership, mastery, duplicate or rank records. WFCD is community maintained and may lag a game patch.
+The live app is updated by changes to `index.html` on the same branch, without installing new ZIP packages.
 
-## Privacy and limitations
+## Your private profile
 
-This **public** repository contains app code and public item metadata only. The owner's personal inventory, spreadsheet progression and video review are supplied separately and remain on the user's device after import. Never commit a private backup, raw video, or user data here.
+**There is no personal player inventory in this public repository.** The private import file `Tenno_Arsenal_Full_Private_Import.json` was delivered separately in ChatGPT. In the app, select **Restore collection**, choose that JSON once, then use **Backup** to save updates in a private location (e.g. OneDrive). The browser stores your data locally; there is not yet cross-device automatic sync.
 
-PlayStation does not expose a complete player inventory to the website, so gameplay changes need updating manually or importing a verified reconciliation. There is no cross-device automatic personal-profile sync yet. The original Google Sheet is unchanged.
+Do not commit any private player collection backup, video screenshots or data extracts to this repository.
 
-The initial personal import is based on the March 2026 Google Sheet and manually verified November 2026 video corrections; uncertain video text readings are preserved as an audit rather than applied to mod quantities.
+## Functionality
+
+- Mastery, current ownership, blueprints, components and Helminth subsuming for Warframes, weapons, companions, robotic weapons, vehicles, Necramechs, Amps, modular items, Arch-Guns and Arch-Melees
+- Mod quantities **at individual ranks**, including duplicates, plus in-game-inspired card and compact table views
+- Arcanes, Rivens, normal star chart, Steel Path, Drifter/Railjack intrinsics and notes/trades
+- Session planner, including ready-to-level, partially crafted equipment and farming targets
+- Public game catalogue from a packaged baseline and live daily refresh attempts from [WFCD/warframe-items](https://github.com/WFCD/warframe-items)
+
+**Limitations:** Community catalogue refresh may lag new Warframe releases or partially fail; the app shows the last check. The app cannot automatically read your PlayStation owned/mastered status. The imported workbook records historical progress from March 2026 and only manually verified November 2026 video inventory changes; uncertain readings are retained for review, not silently applied.
