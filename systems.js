@@ -20,6 +20,9 @@ const S_ACTIVITIES=[
  ['Deep Archimedea','Weekly & repeatable','Weekly','Personal Research Points and Elite variant'],
  ['Temporal Archimedea','Weekly & repeatable','Weekly','1999 Archimedea and Elite variant; shared Search Pulses'],
  ['The Icebind','Weekly & repeatable','Repeatable','Six-player Cryobell challenge, launched 7 October 2026'],
+ ['Descendia','Weekly & repeatable','Weekly','The Old Peace: Dark Refractory rotating Descendia floors and rewards'],
+ ['The Perita Rebellion','Weekly & repeatable','Repeatable','The Old Peace: Dark Refractory Tau battlefield objectives and Marks of Valiance'],
+ ["Follie's Hunt",'Weekly & repeatable','Repeatable','Vesper Relay mission released with The Shadowgrapher in March 2026'],
  ['Steel Path Incursions','Weekly & repeatable','Daily','Daily Steel Path Incursions and Steel Essence'],
  ['Arbitrations','Weekly & repeatable','Repeatable','Vitus Essence / adaptation and related goals'],
  ['Normal Circuit','Duviri','Weekly','Warframe reward track and weekly Circuit tier'],
@@ -45,6 +48,7 @@ const S_ACTIVITIES=[
  ['Nightwave season','Seasonal & social','Seasonal','Current season rank, Acts and reward track'],
  ['Höllvania 1999 Calendar','Seasonal & social','Weekly','Weekly calendar activities and season goals'],
  ['Hex KIM chemistry','Seasonal & social','Permanent','Individual chemistry, conversations and relationship goals'],
+ ["Devil's Triad GIM",'Seasonal & social','Permanent','Marie, Lyon and Roathe relationship conversations from The Old Peace'],
  ['Kahl weekly mission','Seasonal & social','Weekly','Kahl Garrison missions and Stock purchases'],
  ['Void Fissures / relic opening','Seasonal & social','Repeatable','Target Prime parts and relic reserves'],
  ['Codex scans / fragments','Exploration & collections','Permanent','Codex scans, fragments, Kuria and Somachord'],
@@ -56,6 +60,7 @@ const S_ACTIVITIES=[
  ['Platinum / trading goals','Exploration & collections','Optional','Wishlist of items to trade or buy']
 ];
 const S_CORE_HEX=['Arthur','Aoi','Amir','Eleanor','Lettie','Quincy'];
+const S_GIM=['Marie','Lyon','Roathe'];
 const S_CADENCE=['All','Daily','Weekly','Repeatable','Permanent','Seasonal','Optional'];
 const S_UI={syGroup:'All',aGroup:'All',cadence:'All',search:''};
 const S_STATUS=[['unknown','Unknown / not recorded'],['locked','Locked'],['available','Available'],['in-progress','In progress'],['completed','Completed'],['not-applicable','Not applicable']];
@@ -116,15 +121,15 @@ function sActivities(g){
 }
 function sHex(g){
  const rel=sModel().hexChemistry;
- let s='<div class="panel"><h2>1999 — Hex chemistry</h2><p class="muted tiny">Keep chemistry labels as shown in your KIM interface. Unknown relationships stay blank. This does not automatically read your PlayStation progress.</p>';
+ let s='<div class="panel"><h2>Hex KIM & Devil’s Triad GIM</h2><p class="muted tiny">Keep chemistry labels as shown in your KIM / GIM interface. Unknown relationships stay blank. This does not automatically read your PlayStation progress.</p>';
  s+='<div class="tablewrap"><table class="data"><thead><tr><th>Member</th><th>Current chemistry</th><th>Next conversation / goal</th></tr></thead><tbody>';
- for(const name of [...new Set([...S_CORE_HEX,...Object.keys(rel)])]){
+ for(const name of [...new Set([...S_CORE_HEX,...S_GIM,...Object.keys(rel)])]){
   const x=rel[name]||{};
-  s+='<tr><td class="name">'+S_ESC(name)+'</td><td><input class="field sGoal" value="'+S_ESC(x.chemistry||'')+'" placeholder="Not recorded" data-s-chem="'+S_ID(name)+'"></td><td><input class="field sGoal" value="'+S_ESC(x.goal||'')+'" placeholder="Optional goal" data-s-hexgoal="'+S_ID(name)+'"></td></tr>';
+  s+='<tr><td class="name">'+S_ESC(name)+'<div class="muted tiny">'+(S_GIM.includes(name)?'The Old Peace · GIM':'1999 · KIM')+'</div></td><td><input class="field sGoal" value="'+S_ESC(x.chemistry||'')+'" placeholder="Not recorded" data-s-chem="'+S_ID(name)+'"></td><td><input class="field sGoal" value="'+S_ESC(x.goal||'')+'" placeholder="Optional goal" data-s-hexgoal="'+S_ID(name)+'"></td></tr>';
  }
  s+='</tbody></table></div><div class="editline pAdd"><input class="field" id="sNewHex" placeholder="Additional KIM contact"><button class="button small" data-s-act="add-hex">Add person</button></div></div>';return s;
 }
-P_TABS.push(['syndicates','Syndicates'],['activities','Game modes'],['hex','1999 KIM']);
+P_TABS.push(['syndicates','Syndicates'],['activities','Game modes'],['hex','KIM & GIM']);
 const sOriginalProgressPage=progressPage;
 progressPage=function(){
  if(!['syndicates','activities','hex'].includes(P_UI.tab))return sOriginalProgressPage();
