@@ -137,8 +137,8 @@ function isApply(j){
  return updated;
 }
 const IS_OLD_SETTINGS=settingsPage;
-settingsPage=function(){
- let s=IS_OLD_SETTINGS();
+function isMergeSection(){
+ let s='';
  s+='<section class="panel"><h2>Merge a verified inventory capture</h2><p class="muted tiny">For Companion-app recordings reconciled in ChatGPT. Only explicitly verified Arcanes, shard quantities, faction Standing, Nightwave and equipment fields are updated; your quests, mastery, mission nodes, mods, manual notes and other progress stay untouched. This is <strong>not</strong> a full-profile restore.</p>';
  s+='<input type="file" id="isPatchFile" accept=".json,application/json" style="display:none"><button class="button gold" data-is-action="browse">Choose inventory update JSON</button>';
  if(IS_PENDING){
@@ -153,7 +153,16 @@ settingsPage=function(){
  }
  s+='</section>';
  return s;
-};
+}
+settingsPage=function(){return IS_OLD_SETTINGS()+isMergeSection();};
+function inventoryPage(){
+ const actions=button('Back to Command Centre','goto','data-target="overview"','small')+' '+button('Settings','goto','data-target="settings"','small');
+ return title('Import inventory','Merge the verified Companion app recording without replacing your existing progress',actions)+statusNotice()+isMergeSection();
+}
+NAV.splice(NAV.findIndex(x=>x[0]==='settings'),0,['inventory','⇧','Import inventory']);
+document.addEventListener('DOMContentLoaded',()=>{
+ if(location.hash==='#inventory')go('inventory');
+});
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-is-action]');if(!b)return;
  if(b.dataset.isAction==='browse'){document.getElementById('isPatchFile')?.click();return;}
@@ -188,4 +197,4 @@ document.addEventListener('change',e=>{
  };
  reader.readAsText(f);e.target.value='';
 });
-if(state.page==='settings')render();
+if(state.page==='settings'||state.page==='inventory')render();
