@@ -49,8 +49,8 @@ function dRowStats(g){
  const modList=allMods(),ownedMods=modList.filter(m=>modQty(m)>0),copies=modList.reduce((s,m)=>s+modQty(m),0);
  const qNames=[...new Set([...P_QUESTS.map(q=>q[0]),...(g.extraQuests||[]).map(x=>x.name)])],
  questsDone=qNames.filter(q=>g.quests[q]==='completed').length,questsKnown=qNames.filter(q=>dRecorded(g.quests[q])).length;
- const allNodes=new Set([...P_UI.nodes.map(n=>n.id),...g.nodes.custom.map(n=>n.id)]);
- const normal=Object.values(g.nodes.normal),steel=Object.values(g.nodes.steel);
+ const allNodes=new Set(pChartNodes(g,'origin').map(n=>n.id));
+ const normal=Object.entries(g.nodes.normal).filter(([id])=>allNodes.has(id)).map(([,v])=>v),steel=Object.entries(g.nodes.steel).filter(([id])=>allNodes.has(id)).map(([,v])=>v);
  const normalDone=normal.filter(x=>x==='completed').length,steelDone=steel.filter(x=>x==='completed').length;
  const nodeKnown=normal.filter(dRecorded).length+steel.filter(dRecorded).length;
  const focusTotal=P_SCHOOLS.reduce((n,sc)=>n+(new Set([...(P_FOCUS[sc]||[]),...(g.focus[sc]?.custom||[])])).size,0);
@@ -75,7 +75,7 @@ function dRowStats(g){
   gear:gear.length,ownedGear:ownedGear.length,mastered:mastered.length,readyLevel:ownedGear.filter(r=>!masteredEquip(r)).length,
   mods:modList.length,ownedMods:ownedMods.length,copies,
   questsDone,questsKnown,questsTotal:qNames.length,
-  normalDone,steelDone,nodeKnown,nodePossible:allNodes.size*2,nodeCatalogLoaded:allNodes.size>0,
+  normalDone,steelDone,nodeKnown,nodePossible:allNodes.size*2,nodeCatalogLoaded:allNodes.size>0,originSummary:g.originSummary||null,installedShardsVerified:!!g.shards.installedConfirmedAt,
   focusSet,focusTotal,focusSchools,spareCount,spareRecorded,installations,
   intrKnown,intrTotal:intrNames.length,syKnown,syMax,
   actKnown,actTotal:acts.length,actDone,actOpen,
@@ -84,15 +84,15 @@ function dRowStats(g){
  };
 }
 function dAreaInfo(id,c){
- const nw=g.nightwave||{},nwRank=typeof nw.rank==='number'?'Rank '+nw.rank+(nw.prestige?' / Prestige '+nw.prestige:''):'Rank not recorded';
+ const g=dModel(),nw=g.nightwave||{},nwRank=typeof nw.rank==='number'?'Rank '+nw.rank+(nw.prestige?' / Prestige '+nw.prestige:''):'Rank not recorded';
  const map={
  nightwave:{main:nwRank,sub:(nw.acts||[]).filter(x=>!x.done).length+' active personal Acts · '+Object.values(nw.claimed||{}).filter(Boolean).length+' reward tiers claimed',known:typeof nw.rank==='number'||(nw.acts||[]).length>0},
  equipment:{main:c.mastered+' / '+c.gear+' mastered',sub:c.ownedGear+' owned · '+c.readyLevel+' ready to level',known:c.gear>0},
  mods:{main:c.ownedMods+' / '+c.mods+' owned',sub:c.copies+' copies at recorded ranks',known:c.mods>0},
  quests:{main:c.questsDone+' / '+c.questsTotal+' confirmed complete',sub:(c.questsTotal-c.questsKnown)+' quests not reviewed',known:c.questsKnown>0},
- star:{main:(c.nodeKnown?c.normalDone+' Normal · '+c.steelDone+' Steel Path':'No individual nodes checked'),sub:c.nodeKnown+' explicit node statuses'+(c.nodeCatalogLoaded?' · '+c.nodePossible+' possible statuses':' · node catalogue pending'),known:c.nodeKnown>0},
+ star:{main:c.originSummary?c.originSummary.normal.completed+' / '+c.originSummary.normal.total+' Normal · '+c.originSummary.steel.completed+' / '+c.originSummary.steel.total+' Steel':c.nodeKnown?c.normalDone+' Normal · '+c.steelDone+' Steel Path':'No individual nodes checked',sub:c.originSummary?'Official in-game Origin count; manual node checklist may differ':c.nodeKnown+' recorded Origin statuses',known:!!c.originSummary||c.nodeKnown>0},
  focus:{main:c.focusSet+' / '+c.focusTotal+' ability ranks recorded',sub:c.focusSchools+' / 5 school unlock states checked',known:c.focusSet>0||c.focusSchools>0},
- shards:{main:c.spareRecorded?c.spareCount+' spare · '+c.installations+' installed':c.installations?c.installations+' installations recorded':'Shard inventory not recorded',sub:c.spareRecorded+' / 12 spare-count fields checked',known:c.spareRecorded>0||c.installations>0},
+ shards:{main:c.spareRecorded||c.installedShardsVerified?c.spareCount+' spare · '+c.installations+' installed':c.installations?c.installations+' installations recorded':'Shard inventory not recorded',sub:c.installedShardsVerified?'Installed shards confirmed in-game; spare counts from inventory':c.spareRecorded+' / 12 spare-count fields checked',known:c.spareRecorded>0||c.installations>0||c.installedShardsVerified},
  intrinsics:{main:c.intrKnown+' / '+c.intrTotal+' tracks recorded',sub:'Railjack 5 · Drifter 4',known:c.intrKnown>0},
  syndicates:{main:c.syKnown+' / '+c.syMax+' factions recorded',sub:'Ranks · standing · next target',known:c.syKnown>0},
  activities:{main:c.actKnown+' / '+c.actTotal+' statuses recorded',sub:c.actOpen+' actionable · '+c.actDone+' last marked complete',known:c.actKnown>0},
@@ -228,9 +228,9 @@ function dOverview(){
  s+='<div class="dSnapshot"><span class="pill ok">Private profile loaded</span><span class="muted tiny">Your saved Warframe progress · local to this browser</span><span class="muted tiny">Last browser edit: '+h(dDate(state.profile.meta.lastUpdated))+'</span><span class="muted tiny">Catalogue: '+h(catalogueStatusText())+'</span></div>';
  s+='<div class="cards dMetrics">';
  const items=[
- ['Mastery rank',String(state.profile.meta.masteryRank||'—'),c.mastered+' / '+c.gear+' equipment mastered'],
+ ['Mastery rank',(state.profile.meta.masteryRank?'MR'+state.profile.meta.masteryRank:'—'),(state.profile.meta.masteryXP?Number(state.profile.meta.masteryXP).toLocaleString()+' XP':'Unverified XP')+' · '+c.mastered+' equipment mastered'],
  ['Quests complete',c.questsDone+' / '+c.questsTotal,(c.questsTotal-c.questsKnown)+' quests have no recorded status'],
- ['Mission nodes',c.nodeKnown?c.normalDone+' + '+c.steelDone:'—',c.nodeKnown?'Normal + Steel Path confirmed complete':'Individual mission progress not recorded'],
+ ['Origin System',c.originSummary?c.originSummary.normal.completed+' / '+c.originSummary.normal.total:c.nodeKnown?c.normalDone+' checked':'—',c.originSummary?'Normal · Steel Path '+c.originSummary.steel.completed+' / '+c.originSummary.steel.total+' confirmed':'Manual Origin node records'],
  ['Syndicates',c.syKnown+' / '+c.syMax,'Factions with recorded rank or standing'],
  ['Intrinsics',c.intrKnown+' / '+c.intrTotal,'Tracks with confirmed ranks'],
  ['Play next',String(c.actOpen+c.readyLevel),'Available/in-progress modes + ready-to-level gear']
