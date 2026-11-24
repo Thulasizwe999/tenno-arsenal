@@ -12,7 +12,7 @@ const IS_N=(n,min=0,max=1e9)=>{
 };
 function isValidate(j){
  if(!j||j.format!==IS_FORMAT||j.version!==1)throw Error('Expected a Tenno Arsenal inventory patch (version 1)');
- const allowed=['arcanes','shards','syndicates','nightwave','equipment'];
+ const allowed=['arcanes','shards','syndicates','nightwave','equipment','gameProgress'];
  if(!allowed.some(k=>IS_HAS(j,k)))throw Error('Patch contains no supported sections');
  if(IS_HAS(j,'arcanes')&&!Array.isArray(j.arcanes))throw Error('Arcanes must be a list');
  if(IS_HAS(j,'syndicates')&&!Array.isArray(j.syndicates))throw Error('Syndicates must be a list');
