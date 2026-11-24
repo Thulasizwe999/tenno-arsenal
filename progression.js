@@ -61,7 +61,7 @@ progressPage=function(){
 const g=pModel();
 let s=title('World & story progression','Track real game completion beyond equipment and mods');
 s+=statusNotice();
-s+='<div class="notice"><strong>Progress you have not recorded is unknown, not incomplete.</strong> Old planet checkmarks and Intrinsics totals are preserved separately; they do not prove every individual mission is complete.</div>';
+s+='<div class="notice"><strong>Progress you have not recorded is unknown, not incomplete.</strong> The Normal mission catalogue is prefilled Completed once; new mission nodes remain unknown. Steel Path is tracked separately and is not prefilled.</div>';
 s+=pOverview(g);
 s+='<div class="pTabs">'+P_TABS.map(([k,label])=>'<button class="button '+(P_UI.tab===k?'gold':'ghost')+'" data-p-tab="'+k+'">'+label+'</button>').join('')+'</div>';
 if(P_UI.tab==='star')s+=pStar(g);
@@ -80,7 +80,6 @@ return [...new Set([...bases,...Object.keys(state.profile.progress.starChart),..
 function pStar(g){
 pMarkNormalBaseline();
 const data=pAllNodes(g),curr=g.nodes[P_UI.mode],visible=data.filter(n=>n.planet===P_UI.planet&&(!P_UI.search||(n.name+' '+n.type).toLowerCase().includes(P_UI.search.toLowerCase())));
-const legacy=state.profile.progress[P_UI.mode==='steel'?'steelPath':'starChart'][P_UI.planet];
 let s='<div class="panel"><div class="editline"><div><h2>Mission-by-mission star chart</h2><p class="muted tiny">Normal and Steel Path statuses are independent. Your Normal chart was prefilled once; manual changes are retained.</p></div><div class="actions"><button class="button small" data-p-act="refresh">↻ Refresh missions</button>'+(P_UI.mode==='normal'?'<button class="button small" data-p-act="recomplete" title="Overwrite Normal node statuses only after confirmation">Mark all Normal complete</button>':'')+'</div></div>';
 s+='<div class="filters"><select class="select" id="pPlanet">'+option(pPlanets(g),P_UI.planet)+'</select>'+pDrop([['normal','Normal'],['steel','Steel Path']],P_UI.mode,'id="pMode"')+'<input class="search" id="pNodeSearch" value="'+h(P_UI.search)+'" placeholder="Search missions"></div>';
 s+='<p class="helptext">'+h(P_UI.feed)+' · '+data.length+' entries available</p>';
