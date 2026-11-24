@@ -220,7 +220,7 @@ function dOverview(){
    '<div class="panel"><h2>One home for the whole game</h2><p class="muted">Restore your private SpineCrown profile to see mastery, quest progress, Syndicates, Focus, intrinsics, shards and a session planner here. Unrecorded data stays unknown.</p><p class="muted tiny">This public website contains no personal PlayStation data.</p></div>';
  }
  const g=dModel(),c=dRowStats(g);
- let s=title('Tenno command centre','Your recorded game progress, what to tackle next, and where to check each system in Warframe',button('Back up progress','backup','','small')+' '+button('Session planner','goto','data-target="planner"','gold'));
+ let s=title('Tenno command centre','Your recorded game progress, what to tackle next, and where to check each system in Warframe',button('Back up progress','backup','','small')+' '+button('Session planner','goto','data-target="planner"','small')+' '+button('Audit mastery','goto','data-target="mastery"','gold'));
  s+=statusNotice();
  s+='<div class="dSnapshot"><span class="pill ok">Private profile loaded</span><span class="muted tiny">Imported snapshot: '+h(state.profile.meta.inventoryAsOf||state.profile.meta.source||'historical spreadsheet')+'</span><span class="muted tiny">Last browser edit: '+h(dDate(state.profile.meta.lastUpdated))+'</span><span class="muted tiny">Catalogue: '+h(catalogueStatusText())+'</span></div>';
  s+='<div class="cards dMetrics">';
