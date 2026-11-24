@@ -1,7 +1,7 @@
 'use strict';
 /* Tenno Arsenal / Mastery Audit.
  * Rules and public reference constants only; all personal states are browser-local.
- * Distinguishes spreadsheet parity, provisional reconstructed XP and official verified XP.
+ * Distinguishes the previous recorded XP baseline, current estimated XP and official verified XP.
  * No assumption that a "mastered" checkbox proves rank 40 or a planet checkbox proves all nodes.
  */
 const M_REGION=[
@@ -10,7 +10,7 @@ const M_REGION=[
  ['Neptune',1803],['Pluto',1572],['Eris',1561],['Sedna',3511]
 ];
 const M_CATEGORIES=['Warframes','Primary','Secondary','Melee','Companions','Adversary Weapons','Robotic Weapons','Vehicles','Necramechs','Arch-Guns','Arch-Melees','Amps','Modular'];
-const M_NOTE='Warframe awards 100 mastery per weapon, prism, kitgun chamber or Zaw strike rank; 200 per frame, companion, vehicle or Necramech rank; 1,500 per Intrinsic rank. Mission and junction rewards vary by node. Older checked planets are historical proxies, not proof that every individual node is done.';
+const M_NOTE='Warframe awards 100 mastery per weapon, prism, kitgun chamber or Zaw strike rank; 200 per frame, companion, vehicle or Necramech rank; 1,500 per Intrinsic rank. Mission and junction rewards vary by node. Previously recorded planet totals are estimates, not proof that every individual node is done.';
 const M_REF='https://wiki.warframe.com/w/Mastery_Rank';
 function mModel(){
  const g=pModel();
@@ -105,12 +105,12 @@ function mCalc(){
  missing.sort((a,b)=>b.remaining-a.remaining||a.name.localeCompare(b.name));
  const sheetDelta=sheet===null?null:sum-sheet,gameDelta=officialTotal===null?null:sum-officialTotal;
  const issues=[];
- if(nonMastery.length)issues.push({level:'high',title:'Non-mastery Amp entry',text:nonMastery.map(x=>x.name).join(', ')+' is marked mastered but grants no mastery. The old sheet credited 3,000 XP for each.'});
+ if(nonMastery.length)issues.push({level:'high',title:'Non-mastery Amp entry',text:nonMastery.map(x=>x.name).join(', ')+' is marked mastered but grants no mastery. A previous estimate incorrectly credited 3,000 XP for each.'});
  if(uncertain.length)issues.push({level:'high',title:'Overlevelled items need rank confirmation',text:uncertain.map(x=>x.name).join(', ')+'. The audit only credits rank 30 until you record the highest rank you actually earned.'});
- if(normal.provisional)issues.push({level:'warn',title:'Normal star chart uses historical region checks',text:normal.checked+' of 14 historical destination checkboxes give '+normal.historical.toLocaleString()+' XP. This does not prove 2026 node completeness. Enter the XP from your in-game profile for an exact total.'});
- if(steel.provisional)issues.push({level:'warn',title:'Steel Path cannot be verified from planet checks alone',text:'The historical sheet has '+steel.checked+' destinations marked complete. Recorded individual nodes without exact XP are not valued automatically.'});
+ if(normal.provisional)issues.push({level:'warn',title:'Normal star-chart XP remains provisional',text:normal.checked+' of 14 previously recorded destination checks give '+normal.historical.toLocaleString()+' XP. This does not prove 2026 node completeness. Enter the XP from your in-game profile for an exact total.'});
+ if(steel.provisional)issues.push({level:'warn',title:'Steel Path cannot be verified from planet checks alone',text:'The saved profile has '+steel.checked+' destinations marked complete. Recorded individual nodes without exact XP are not valued automatically.'});
  if(normal.unvalued.length||steel.unvalued.length)issues.push({level:'high',title:'Completed mission nodes without verified XP',text:(normal.unvalued.length+steel.unvalued.length)+' completed node records lie outside historically completed regions and lack a confirmed mastery reward.'});
- if(rail.provisional||drifter.provisional)issues.push({level:'warn',title:'Intrinsics still rely on historical totals',text:'Record all nine individual tracks, or enter official Railjack and Drifter Intrinsic mastery totals.'});
+ if(rail.provisional||drifter.provisional)issues.push({level:'warn',title:'Intrinsics still rely on older rank totals',text:'Record all nine individual tracks, or enter official Railjack and Drifter Intrinsic mastery totals.'});
  if(all.some(x=>x.category==='Amps'&&x.name==='Mote Amp'&&x.mastered)&&all.some(x=>x.category==='Amps'&&x.name==='Mote Prism'&&x.mastered))issues.push({level:'high',title:'Duplicate Mote Amp / Mote Prism entries',text:'Only one legitimate mastery progression should count for the Mote Amp. Check your actual Amp XP.'});
  if(gameDelta!==null&&gameDelta!==0)issues.push({level:'high',title:'Calculated XP differs from your game profile',text:'Calculated minus in-game = '+gameDelta.toLocaleString()+' XP. Check individual ranks, missions and intrinsics before changing any recorded progress.'});
  return {all,cats,earned,rail,drifter,normal,steel,sum,sheet,sheetDelta,officialTotal,gameDelta,derived,issues,missing,special,nonMastery,uncertain,model:a,starModel:g};
@@ -126,10 +126,10 @@ function masteryPage(){
  const x=mCalc(),c=x.cats,a=x.model;
  let s=title('Mastery audit','Reconstruct your mastery from earned equipment ranks, missions and Intrinsics',button('Backup before editing','backup','','small')+' '+button('View equipment','goto','data-target="equipment"','small'));
  s+=statusNotice();
- s+='<div class="notice"><strong>Two different numbers:</strong> <em>Calculated XP</em> uses the ranks and progress recorded in Tenno Arsenal, with conservative rank-40 assumptions. <em>Official XP</em> is whatever you verify in your in-game player profile. Imported historical values are comparison points, not authoritative live totals.</div>';
+ s+='<div class="notice"><strong>Two different numbers:</strong> <em>Calculated XP</em> uses the ranks and progress recorded in Tenno Arsenal, with conservative rank-40 assumptions. <em>Official XP</em> is whatever you verify in your in-game player profile. Previously recorded totals are comparison points, not authoritative live game totals.</div>';
  s+='<div class="cards mStats">';
  s+=mMetric('Calculated mastery',x.sum.toLocaleString(),'Provisional • from saved records');
- s+=mMetric('Spreadsheet mastery',x.sheet===null?'—':x.sheet.toLocaleString(),'Historical imported formula');
+ s+=mMetric('Previously saved mastery',x.sheet===null?'—':x.sheet.toLocaleString(),'Saved comparison figure');
  s+=mMetric('Official game mastery',x.officialTotal===null?'Not entered':x.officialTotal.toLocaleString(),'Enter your current in-game value');
  s+=mMetric('Next mastery threshold',x.derived.next,(x.derived.remaining).toLocaleString()+' XP remaining • based on '+(x.officialTotal!==null?'official XP':'calculated XP'));
  s+='</div>';
@@ -142,10 +142,10 @@ function masteryPage(){
  s+='<div class="mTotal"><strong>Total reconstructed XP</strong><strong>'+x.sum.toLocaleString()+'</strong></div>';
  s+='<p class="helptext">'+h(M_NOTE)+'</p></section>';
  s+='<section class="panel"><h2>Reconciliation</h2>';
- s+='<p class="muted tiny">A difference is not automatically missing game content. It can mean a stale sheet, an incorrect mastery flag, a partial rank, a bugged profile entry or incomplete mission records.</p>';
- s+=x.sheetDelta===null?'<div class="mCompare">No original workbook XP available.</div>':'<div class="mCompare"><strong>Versus original sheet</strong><span class="'+(x.sheetDelta?'mWarning':'mGood')+'">'+(x.sheetDelta>0?'+':'')+x.sheetDelta.toLocaleString()+' XP</span></div>';
+ s+='<p class="muted tiny">A difference is not automatically missing game content. It can mean outdated saved progress, an incorrect mastery flag, a partial rank, a bugged profile entry or incomplete mission records.</p>';
+ s+=x.sheetDelta===null?'<div class="mCompare">No previously saved XP total available.</div>':'<div class="mCompare"><strong>Versus saved total</strong><span class="'+(x.sheetDelta?'mWarning':'mGood')+'">'+(x.sheetDelta>0?'+':'')+x.sheetDelta.toLocaleString()+' XP</span></div>';
  s+=x.gameDelta===null?'<div class="mCompare"><strong>Versus official profile</strong><span class="muted">Not entered yet</span></div>':'<div class="mCompare"><strong>Versus official profile</strong><span class="'+(x.gameDelta?'mWarning':'mGood')+'">'+(x.gameDelta>0?'+':'')+x.gameDelta.toLocaleString()+' XP</span></div>';
- s+='<p class="muted tiny">The original March 2026 workbook was '+(x.sheetDelta===null?'not available':'reconstructed as '+x.sheet.toLocaleString()+' XP')+'. Its 14 regional mission weights total 27,519 XP; those are not a live Warframe 2026 node catalogue.</p>';
+ s+='<p class="muted tiny">The prior saved total is '+(x.sheetDelta===null?'not recorded':'recorded as '+x.sheet.toLocaleString()+' XP')+'. Its 14 planet-region mission weights total 27,519 XP; that estimate is not a current per-node XP calculation.</p>';
  const sourceCompare=[['Equipment',x.earned,a.official.equipment],['Normal missions',x.normal.xp,a.official.normal],['Steel Path',x.steel.xp,a.official.steel],['Railjack Intrinsics',x.rail.xp,a.official.railjack],['Drifter Intrinsics',x.drifter.xp,a.official.drifter]];
  if(sourceCompare.some(row=>mHas(row[2]))){
   s+='<h3>Official XP differences by source</h3><div class="mSourceCompare">';
@@ -173,7 +173,7 @@ function masteryPage(){
  s+='<section class="panel"><h2>Equipment XP by category</h2><p class="muted tiny">A mastered checkbox counts as rank 30 unless you explicitly record a higher earned rank. Only unique rank progression earns mastery; duplicate builds and Forma releveling do not repeat it.</p><div class="tablewrap"><table class="data"><thead><tr><th>Category</th><th>Mastered items</th><th>Calculated XP</th><th>Remaining theoretical XP</th></tr></thead><tbody>';
  for(const key of M_CATEGORIES){const row=c[key];if(!row||!row.count)continue;s+='<tr><td class="name">'+h(key)+'</td><td>'+row.mastered+' / '+row.count+'</td><td>'+row.xp.toLocaleString()+'</td><td>'+Math.max(0,row.fullPotential-row.xp).toLocaleString()+'</td></tr>';}
  s+='</tbody></table></div><p class="helptext">Theoretical remaining XP includes catalogue entries that could be unavailable, duplicated, exclusive or newly released. It is <strong>not</strong> a guaranteed farmable XP total.</p></section>';
- s+='<section class="panel"><h2>Rank-40 equipment audit</h2><p class="muted tiny">Paracesis, Kuva/Tenet/Coda weapons and Necramechs can earn mastery above rank 30. Choose the <strong>highest rank you have ever earned</strong>. Leaving a rank blank conservatively credits only 30 for mastered items. The imported spreadsheet assumed Paracesis was rank 40.</p>';
+ s+='<section class="panel"><h2>Rank-40 equipment audit</h2><p class="muted tiny">Paracesis, Kuva/Tenet/Coda weapons and Necramechs can earn mastery above rank 30. Choose the <strong>highest rank you have ever earned</strong>. Leaving a rank blank conservatively credits only 30 for mastered items. The previous estimate assumed Paracesis had reached rank 40.</p>';
  if(!x.special.length){s+=empty('No rank-40 mastered equipment recorded','Once you mark these items mastered, they appear here.');}
  else {s+='<div class="tablewrap"><table class="data"><thead><tr><th>Equipment</th><th>Earned rank</th><th>XP counted</th><th>Potential above 30</th></tr></thead><tbody>';
  for(const row of x.special){
@@ -192,15 +192,15 @@ function masteryPage(){
   }
   s+='</tbody></table></div></section>';
  }
- s+='<section class="panel"><h2>Mission mastery verification</h2><p class="muted tiny">The 2025 tracker stored 14 weighted destination checkmarks. For missions added later or missions not covered by those historical region totals, individual node completion is not enough: its awarded mastery XP must be known. Use your game-profile XP above for the most reliable result.</p>';
- s+='<div class="mColumns"><div><strong>Normal star chart</strong><p class="muted tiny">'+x.normal.checked+' historical regions checked · '+x.normal.historical.toLocaleString()+' old XP · '+x.normal.completedCount+' individual nodes recorded</p></div><div><strong>Steel Path</strong><p class="muted tiny">'+x.steel.checked+' historical regions checked · '+x.steel.historical.toLocaleString()+' old XP · '+x.steel.completedCount+' individual nodes recorded</p></div></div>';
+ s+='<section class="panel"><h2>Mission mastery verification</h2><p class="muted tiny">The saved profile includes 14 planet-level XP estimates. For missions added later or missions not covered by those historical region totals, individual node completion is not enough: its awarded mastery XP must be known. Use your game-profile XP above for the most reliable result.</p>';
+ s+='<div class="mColumns"><div><strong>Normal star chart</strong><p class="muted tiny">'+x.normal.checked+' region totals available · '+x.normal.historical.toLocaleString()+' estimated XP · '+x.normal.completedCount+' individual nodes recorded</p></div><div><strong>Steel Path</strong><p class="muted tiny">'+x.steel.checked+' region totals available · '+x.steel.historical.toLocaleString()+' estimated XP · '+x.steel.completedCount+' individual nodes recorded</p></div></div>';
  const nodeRows=[...x.normal.nodeRows.map(y=>({...y,mode:'normal'})),...x.steel.nodeRows.map(y=>({...y,mode:'steel'}))];
  if(nodeRows.length){
  s+='<div class="tablewrap"><table class="data"><thead><tr><th>Completed node</th><th>Chart</th><th>Verified mastery XP</th></tr></thead><tbody>';
  for(const row of nodeRows.slice(0,80))s+='<tr><td class="name">'+h(row.name)+'<small class="muted">'+h(row.planet||'Unknown planet')+'</small></td><td>'+h(row.mode==='normal'?'Normal':'Steel Path')+'</td><td><input class="field mSmall" type="number" min="0" step="1" placeholder="Unknown" data-m-node="'+h(row.mode+'|'+row.id)+'" value="'+mIn(a.nodeXp[row.mode][row.id])+'"></td></tr>';
  s+='</tbody></table></div>';
  }
- s+='<p class="helptext">Warning: Normal/Steel mission XP cannot be calculated exactly from node names or a planet checkbox alone. A future live node-XP dataset could improve this. The historical 27,519 XP baseline may differ from current obtainable mission XP.</p></section>';
+ s+='<p class="helptext">Warning: Normal/Steel mission XP cannot be calculated exactly from node names or a planet checkbox alone. A future live node-XP dataset could improve this. The 27,519 XP region estimate may differ from currently obtainable mission XP.</p></section>';
  s+='<section class="panel"><h2>Potential next mastery gains</h2><p class="muted tiny">Listed in theoretical XP order, not in order of farming difficulty. Incomplete and unreleased items must be verified before treating them as available.</p><div class="tablewrap"><table class="data"><thead><tr><th>Equipment</th><th>Current credited XP</th><th>Remaining XP</th><th></th></tr></thead><tbody>';
  for(const row of x.missing.slice(0,35))s+='<tr><td class="name">'+h(row.name)+'<small class="muted">'+h(row.category)+'</small></td><td>'+row.calc.xp.toLocaleString()+'</td><td>'+row.remaining.toLocaleString()+'</td><td><button class="button small" data-m-open="'+enc(ek(row.category,row.name))+'">View equipment</button></td></tr>';
  s+='</tbody></table></div></section>';
