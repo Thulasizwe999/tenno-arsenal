@@ -71,7 +71,7 @@ The World & story star chart is now divided into independent maps:
 - **Railjack Proxima** — Earth, Venus, Saturn, Uranus, Neptune, Pluto and Veil Proxima; Normal and Steel Path tracked separately
 - **Höllvania 1999** — NavNow's main missions and Faceoff variants (mode-level reference, not an Origin XP node list)
 - **Duviri** — Circuit, Lone Story and Duviri Experience
-- **Hubs & relays** — locations and consoles that are not ordinary mastery-awarding mission nodes
+- **Hubs & special** — relays, free-roam destinations and inactive special entries that should not be mistaken for standard mission-clear nodes
 
 The public mission list includes WFCD entries and official 2026 Uranus Proxima missions, which may not yet appear in the community feed. Chart grouping does not itself affect any player's saved mission status.
 
