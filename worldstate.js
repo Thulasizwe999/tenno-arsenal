@@ -168,7 +168,7 @@ function wCycle(label,x,kind){
  if(!stateLabel&&typeof x.isWarm==='boolean')stateLabel=x.isWarm?'Warm':'Cold';
  if(kind==='cambion')stateLabel=stateLabel||'Fass / Vome cycle';
  if(!stateLabel)stateLabel='Current state unavailable';
- return '<div class="wCycle"><strong>'+h(label)+'</strong><div class="wCycleState">'+h(stateLabel)+'</div><div class="muted tiny">Changes in '+wLeft(wExpiry(x))+'</div></div>';
+ return '<div class="wCycle"><strong>'+h(label)+'</strong><div class="wCycleState">'+h(stateLabel)+'</div><div class="muted tiny">Changes in '+(wExpiry(x)?wLeft(wExpiry(x)):x.timeLeft?h(x.timeLeft)+' (at last refresh)':'No change time published')+'</div></div>';
 }
 function wCycles(world){
  const cycles=[['Cetus / Plains',world.cetusCycle],['Earth',world.earthCycle],['Orb Vallis',world.vallisCycle],['Cambion Drift',world.cambionCycle,'cambion'],['Zariman',world.zarimanCycle],['Duviri',world.duviriCycle]].map(([name,x,kind])=>wCycle(name,x,kind)).filter(Boolean);
@@ -213,7 +213,7 @@ function wPage(){
  let s=title('Live Warframe world','PlayStation world-state timers, missions and opportunities in one place',actions);
  s+='<div class="wIntro"><span class="pill">Public world state · PlayStation endpoint</span><span class="muted tiny">Rotations can be shared with PC via the provider.</span><span class="muted tiny">Local time <strong id="wLocalClock">'+h(new Date().toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))+'</strong></span></div>';
  if(W_DASH.error)s+='<div class="notice warn"><strong>Live feed refresh failed.</strong> '+h(W_DASH.error)+(world?' Showing the last successful snapshot, which may be outdated.':' Live times are unavailable.')+' <a href="https://hub.warframestat.us" target="_blank" rel="noopener">Open Warframe Hub ↗</a></div>';
- if(!world)return s+'<section class="panel wSection">'+wHeading(W_DASH.loading?'Loading live world state…':'Live world-state feed not available')+'<p class="muted">The app displays real values only after the public feed responds. Use Refresh to retry, or open Warframe Hub for another view.</p><p class="muted tiny">Source: <a href="https://docs.warframestat.us/" target="_blank" rel="noopener">WarframeStatus API documentation</a></p></section>';
+ if(!world)return s+'<section class="panel wSection">'+wHeading(W_DASH.loading||!W_DASH.error?'Connecting to live world state…':'Live world-state feed not available')+'<p class="muted">The board shows live missions only after the public feed responds. Use Refresh to retry, or open Warframe Hub for another view.</p><p class="muted tiny">Source: <a href="https://docs.warframestat.us/" target="_blank" rel="noopener">WarframeStatus API documentation</a></p></section>';
  const last=Date.parse(W_DASH.fetchedAt),ageMin=Math.max(0,Math.floor((Date.now()-last)/60000)),stale=ageMin>=10||!!W_DASH.error;
  s+='<div class="wSnapshot"><span class="pill '+(stale?'gold':'ok')+'">'+(stale?'Check freshness':'Recently fetched')+'</span><span class="muted tiny">Fetched '+h(new Date(last).toLocaleString())+' · '+ageMin+' min ago</span><span class="muted tiny">Provider update '+h(world.timestamp?wFmt(world.timestamp):'not supplied')+'</span></div>';
  s+='<div class="cards wMetrics">'+[
