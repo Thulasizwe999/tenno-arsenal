@@ -1,102 +1,50 @@
-# Tenno Arsenal — complete Warframe tracker
+# Tenno Arsenal
 
-A mobile-friendly, single-page Warframe mastery, inventory and farming tracker.
+A private-by-default Warframe companion tracker you can open on desktop or mobile. It brings mastery, inventory, mission completion, Syndicates, Nightwave and your gaming-session priorities into one place.
 
-## Publish and use
+**[Open the app](https://thulasizwe999.github.io/tenno-arsenal/)**
 
-This repository contains a **self-contained `index.html`**, a small icon, install manifest and optional service worker. To enable the permanent site, open **Settings → Pages** in GitHub, choose **Deploy from a branch**, branch **main**, folder **/(root)**, then Save. The site should become available at:
+## Main features
 
-https://thulasizwe999.github.io/tenno-arsenal/
+- **Command centre:** recorded game progress at a glance, review dates, quick-reference rank/Standing/shards/Intrinsics values, and suggested next actions
+- **Equipment and mastery:** Warframes, weapons, Archwings, companions, Necramechs, Amps and modular items, including blueprints, components and Helminth
+- **Mod collection:** duplicate quantities, individual mod ranks, filters and farming targets
+- **Mastery audit:** estimated XP by category, partial ranks on rank-40 gear, mission and Intrinsic estimates, and comparison with manually entered official in-game XP
+- **World & story:** individual star-chart nodes (Normal and Steel Path separately), quests, Focus trees, Archon Shards, Intrinsics, faction Syndicates, activities and relationship progress
+- **Nightwave:** season rank, Prestige, Cred balance, standing into a rank, 30 reward-claim checks, Daily/Weekly/Elite/Permanent Acts, plus a public current-Acts feed and manual personal progress
+- **Session planner, Arcanes, Rivens, notes and trading**
 
-The live app is updated by changes to `index.html` on the same branch, without installing new ZIP packages.
+## Normal versus Steel Path completion
 
-## Your private profile
+A one-time personal-profile update marks the **322 current, supported Normal mission entries** in the bundled 24 November 2026 public node catalogue as **Completed**. This includes all categories returned by that source, not only mastery-awarding missions. It runs **only once** for a loaded private player profile.
 
-**There is no personal player inventory in this public repository.** The private import file `Tenno_Arsenal_Full_Private_Import.json` was delivered separately in ChatGPT. In the app, select **Restore collection**, choose that JSON once, then use **Backup** to save updates in a private location (e.g. OneDrive). The browser stores your data locally; there is not yet cross-device automatic sync.
+- **Steel Path is never changed** by this update.
+- New nodes discovered in a later data refresh remain **Unknown**.
+- Any Normal node you manually change later stays as you set it, even after reloading or refreshing the catalogue.
+- A deliberate **Mark all Normal complete** button is also available with a confirmation prompt.
+- A manually marked-complete mission is **not** proof of its exact mastery XP. Verify mastery against your game profile.
 
-Do not commit any private player collection backup, video screenshots or data extracts to this repository.
+## Nightwave
 
-## Functionality
+The built-in season reference is **Amir's Shockwave** (started 12 August 2026), but you can set a different season and archive progress when it rotates. Public Acts are fetched from the WarframeStatus world-state API when available. The public feed does **not** provide individual PlayStation account completions. Your personal Act status remains manual and private.
 
-- Mastery, current ownership, blueprints, components and Helminth subsuming for Warframes, weapons, companions, robotic weapons, vehicles, Necramechs, Amps, modular items, Arch-Guns and Arch-Melees
-- Mod quantities **at individual ranks**, including duplicates, plus in-game-inspired card and compact table views
-- Arcanes, Rivens, normal star chart, Steel Path, Drifter/Railjack intrinsics and notes/trades
-- Session planner, including ready-to-level, partially crafted equipment and farming targets
-- Public game catalogue from a packaged baseline and live daily refresh attempts from [WFCD/warframe-items](https://github.com/WFCD/warframe-items)
+Official information: https://www.warframe.com/en/nightwave
 
-**Limitations:** Community catalogue refresh may lag new Warframe releases or partially fail; the app shows the last check. The app cannot automatically read your PlayStation owned/mastered status. The imported workbook records historical progress from March 2026 and only manually verified November 2026 video inventory changes; uncertain readings are retained for review, not silently applied.
+## Keeping your progress safe
 
-## Game progression (new)
+Your collection and progress are stored in **your browser's local storage**. They are **not** committed to this public GitHub repository and are not automatically synchronised between devices.
 
-The public `progression.js` module extends the existing `World & story` screen with separate tabs for:
+Select **Backup** in the app to save your complete private JSON file to OneDrive or another location you control. Use **Restore** in a new browser or device. Do not clear your browser/site storage without keeping a backup.
 
-- **Star chart:** individual mission-node completion in Normal and Steel Path; mission names are loaded from the public [WFCD Warframe Worldstate Data](https://github.com/WFCD/warframe-worldstate-data) and can be refreshed or manually extended
-- **Quests:** main story and side-quest states including the October 2026 Prologue to Tau; incomplete and unrecorded are distinct
-- **Focus schools:** five schools, per-ability rank, Waybound unlocks, Focus balances and Tauron unlocks
-- **Archon Shards:** 6 colours, Tauforged or standard, spare stock and installed slots by Warframe
-- **Intrinsics:** all five Railjack and four Drifter skill trees, each with a rank 0–10 or unknown; old workbook totals remain unchanged
-- **Milestones:** additional game activity and system unlocks
+GitHub Pages hosts the app's public code. Future UI/catalogue updates go to the **same app address** and do not require a replacement ZIP. Public item lists refresh from community data when possible; game account data does not automatically synchronise.
 
-Game progress is stored within the same **private browser profile** as equipment and mods; no replacement import is necessary if an existing full profile is already loaded. JSON backups include the added fields. Personal progress is not committed to this public repository.
+## Data sources and limitations
 
-**Accuracy:** historical planet checkmarks do *not* imply all missions are done. The source workbook has no Focus/shard/quest specifics; their initial status is unknown, not zero/incomplete. The external node list can contain incomplete or outdated community names; use the game as authority. Equipment catalogues and mission-node names have refresh features; the quest and Focus reference lists are currently maintained in the app code, not synchronized from PlayStation.
+- Equipment and mod reference: WFCD warframe-items
+- Star-chart mission names: WFCD warframe-worldstate-data
+- Public Nightwave Acts: WarframeStatus API
+- Personal PlayStation progress: entered or imported by the player
 
+Sources can change or lag a game patch. Some special mission entries are present in the public mission catalogue even though they do not award star-chart mastery. The game and its player profile remain authoritative.
 
-## Syndicates & game-mode progress (November 2026)
-
-Within **World & story**, the following additional tabs are available:
-
-- **Syndicates:** 20 currently trackable factions (six Relay, ten Open-world, four Specialist), with per-faction rank, Standing/resource progress, pledge, next target and notes. Includes Nightcap's Field Guide rank/mushroom count, which does not use normal Standing. Supports adding custom/future factions.
-- **Game modes:** 44 missions, weekly endgame activities, Duviri variants, open-world bounties, adversaries, Nightwave, the 1999 Calendar, Railjack, collection systems, and optional modes. Progress is manually marked unknown/locked/available/in progress/completed, with optional numeric count and a farming goal. Only actionable entries become session-plan tasks. Repeatable entries never auto-reset, preventing misleading completion status.
-- **1999 KIM:** chemistry notes and next goals for six original Hex KIM members plus Marie, Lyon and Roathe in The Old Peace GIM, with custom contacts.
-
-**Current as of 24 November 2026:** The Icebind released on 7 October 2026 and can be tracked. Warframe: Tau and **The Cleaving Glaive** Syndicate were announced for December 2026 and are deliberately *not* marked playable. Future Syndicate/mode names are a manually maintained reference list; unlike the item catalogue, this list does not auto-sync to every game release.
-
-For factual context, see Digital Extremes' [Syndicates support guide](https://support.warframe.com/hc/en-us/articles/38802406697229-Syndicates), [The Vallis Undermind notes](https://www.warframe.com/en/patch-notes/ios/40-0-0), [The Icebind update](https://www.warframe.com/en/patch-notes/psn/44-1-0) and [Devstream 198](https://www.warframe.com/en/news/198).
-
-The public repository contains reference lists and UI code only; **no personal ranks, Standing, mushroom counts, Hex chemistry or mission completion data**.
-
-
-## Progression command centre (home screen)
-
-The **Command centre** replaces the old equipment-only homepage with an overview of real game progress, preserving all original profile data:
-
-- Six quick metrics: mastery, quests, individually recorded star-chart nodes, Syndicates, Intrinsics and immediately actionable activities/equipment
-- Review coverage across quests, Focus abilities, intrinsics, Syndicates, modes and system unlocks — clearly labelled **records reviewed**, not a false overall game completion percentage
-- **Next useful actions** from the session planner and a daily/weekly pulse. Repeatable activities are never automatically marked complete across resets
-- **Quick reference** for saved Syndicate ranks/Standing, Focus schools, Railjack/Drifter Intrinsics and Archon Shard spare quantities/installed count
-- **Efficient in-game verification route:** Orbiter, Navigation, hub vendors and specialised systems. Each progression area shows where to find its in-game information
-- Individual **Mark checked** controls record the date you last verified a section in-game. They do not set any quest, node, activity or collection item to Complete
-- Links into all 12 progression areas without having to remember where the corresponding information lives within the tracker
-
-**Privacy and accuracy:** The home screen is entirely generated from your *browser-local* private profile and the *public* game catalogue. No personal Standing, Focus ranks, shards, task history or review dates are committed to this repository. An empty browser shows an import prompt, never another player's data. Mission completion and new account progress cannot be retrieved automatically from PlayStation. Private profile backups remain the way to migrate between devices.
-
-**Review freshness:** Daily rows older than one day and weekly rows older than seven days are labelled for rechecking. Those are reminders, not a claim to match Warframe's exact reset boundaries.
-
-
-## Mastery XP audit (November 2026)
-
-Navigate to **Mastery audit** (or use the **Audit mastery** command-centre shortcut).
-
-This is an independent, live calculation from saved player data:
-- Calculates equipment mastery by exact category and earned rank (100 XP/rank for weapons, prisms, modular weapon parts; 200 XP/rank for frames, companions, vehicles, Necramechs)
-- Tracks rank-40 equipment separately (Paracesis, Kuva/Tenet/Coda weapons and Necramechs); **mastered** alone does not prove rank 40. The audit conservatively credits rank 30 until an earned rank is explicitly entered.
-- Tracks partial mastery ranks for **owned but unmastered** items, including Kuva/Tenet weapons and Necramechs; the recorded value is the highest rank ever earned, not necessarily the current rank after Forma.
-- Excludes the generic unpictured **Amp** profile placeholder from mastery calculations; highlights duplicate Mote Amp / Mote Prism credit risk.
-- Adds Railjack and Drifter Intrinsics XP at 1,500 per earned rank; uses original Drifter/Railjack **total ranks** only until all per-track ranks or official XP are recorded.
-- Uses original 14-region Normal/Steel historical worksheet weights (27,519 XP maximum on the saved baseline); **these are not current live node mastery values**. Completed nodes outside the historical checked region are listed for manual per-node XP entry; nodes within a previously credited region are not counted twice.
-- Separately accepts **official in-game** Mastery XP (total and source-specific breakdown) without modifying the imported original XP.
-- Highlights a difference between the reconstructed and original/official XP, and offers a category XP table plus possible next mastery gains.
-
-### Initial March 2026 reconciliation
-
-The original Google Sheet's own formula reconstructs **1,426,519 XP** at MR23:
-- Equipment **1,345,000** (includes 3,000 XP for generic \`Amp\` and assumes rank-40 Paracesis)
-- Railjack Intrinsics **52,500** (35 legacy ranks)
-- Drifter Intrinsics **1,500** (1 legacy rank)
-- Normal star chart **27,519**
-- Steel Path **0** based on the old checkboxes.
-
-The new conservative audit gives **1,422,519 XP**, a **4,000 XP difference**: it excludes the non-mastery \`Amp\` (3,000) and does not assume Paracesis has reached rank 40 (1,000). If the player confirms Paracesis at rank 40, the estimate becomes **1,423,519 XP**, pending verification of mission/Intrinsic records. These are historical estimates, **not verified current PlayStation profile totals**. Current mission rewards may exceed the old baseline as Warframe is updated.
-
-All future earned-rank, official-XP and mission-XP overrides are stored only in the browser-local private player profile and included in its private JSON backups. The public GitHub repository does not contain player mastery records.
+This is an independent fan tracker, not affiliated with Digital Extremes.
