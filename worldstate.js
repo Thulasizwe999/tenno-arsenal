@@ -58,7 +58,7 @@ async function wFetch(explicit=false){
   W_DASH.error=err.name==='AbortError'?'WarframeStatus timed out.':'Unable to refresh world-state feed ('+(err.message||'network error')+').';
  }finally{
   clearTimeout(timeout);W_DASH.loading=false;
-  if(state.page==='world')render();
+  if(state.page==='world'||state.page==='planner')render();
  }
 }
 function wName(v){if(typeof v==='string')return v;if(v&&typeof v==='object')return wStr(v.name||v.title||v.id||'');return wStr(v)}
@@ -273,3 +273,133 @@ const W_STYLES=document.createElement('style');
 W_STYLES.textContent='.mobileNav{overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}.mobileNav button{min-width:60px;flex:0 0 60px}.wSection{margin-top:18px}.wIntro,.wSnapshot{display:flex;flex-wrap:wrap;align-items:center;gap:9px 15px;margin:10px 0 15px}.wMetrics{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}.wCycle{background:var(--raised);border:1px solid var(--line);border-radius:9px;padding:12px;min-width:0}.wCycles{margin:14px 0 4px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.wCycle strong{font-size:12px}.wCycleState{font-size:16px;font-weight:700;margin:7px 0}.wClock{white-space:nowrap;color:var(--gold);font-weight:700}.wToolbar{margin:20px 0 10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}.wNav,.wFilters{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.wToolbar .field{flex:1;min-width:195px;max-width:330px}.wTable td{font-size:12px}.wTable .button{white-space:nowrap}.wTable td small{display:block;font-size:11px}.wDailyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.wDaily{background:var(--raised);border:1px solid var(--line);padding:12px;border-radius:9px}.wDailyHead{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}.wDailyRows{margin-top:7px}.wDailyItem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.wDailyItem:last-child{border-bottom:0}.wDailyItem span{flex:1;min-width:0}.wDailyItem small{color:var(--muted)}.wEmpty{margin:14px 0}.wSection h2{margin:0}@media(max-width:900px){.wMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.wCycles{grid-template-columns:repeat(2,minmax(0,1fr))}.wDailyGrid{grid-template-columns:1fr}}@media(max-width:600px){.wCycles{grid-template-columns:1fr 1fr}.wToolbar{align-items:stretch}.wToolbar .field{max-width:none}.wDailyItem{flex-wrap:wrap}.wDailyItem .button{margin-left:auto}}';
 document.head.append(W_STYLES);
 if(state.page==='overview')render();
+
+/* Goal-driven session planner: local preferences, existing personal data, live feed. */
+(function installGoalPlanner(){
+ const goals=[['general','General priorities'],['helminth','Rank up Helminth'],['railjack','Progress Railjack'],['prime','Farm Prime parts'],['mastery','Gain mastery XP'],['mods','Farm mods / Arcanes'],['drifter','Progress Drifter Intrinsics']];
+ const ui={goal:'general',mode:'Normal',tier:'All',prime:'',rail:'Unlock regions / nodes'};
+ try{const saved=JSON.parse(localStorage.getItem('tenno-session-goal-v1')||'{}');for(const k of Object.keys(ui))if(typeof saved[k]==='string')ui[k]=saved[k];}catch(e){}
+ if(!goals.some(x=>x[0]===ui.goal))ui.goal='general';
+ const known=x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(Number(x));
+ const esc=x=>h(String(x??''));
+ const select=(id,label,options,value)=>'<label>'+esc(label)+'<select class="select" id="'+id+'">'+options.map(o=>{const a=Array.isArray(o)?o:[o,o];return '<option value="'+esc(a[0])+'" '+(a[0]===value?'selected':'')+'>'+esc(a[1])+'</option>';}).join('')+'</select></label>';
+ const step=(name,detail,extra='')=>({name,detail,extra});
+ const source=(url,label)=>'<a href="'+url+'" target="_blank" rel="noopener">'+esc(label)+'</a>';
+ const edit=r=>button('Review','edit-equipment','data-key="'+enc(ek(r.category,r.name))+'"','small');
+ const openProgress=tab=>'<button class="button small" data-goal-progress="'+tab+'">Review progress</button>';
+ const gear=()=>mergeEquip().filter(r=>r&&r.name);
+ function readyFrames(){
+  const ledger=new Map(pHelminthLedger().map(x=>[x.frame,x.status]));
+  return gear().filter(r=>r.category==='Warframes'&&ledger.get(r.name)==='not-subsummed'&&ownedEquip(r)&&masteredEquip(r));
+ }
+ function railGate(g){
+  const values=P_INTR.Railjack.map(n=>g.intrinsics.Railjack[n]);
+  return {max:Math.max(0,...values.filter(known).map(Number)),complete:values.every(known),values};
+ }
+ function liveRows(storm,tiers,gate,g){
+  if(!W_DASH.snapshot)return [];
+  return wActive(W_DASH.snapshot.fissures).filter(x=>!!x.isStorm===storm&&(!tiers||tiers.includes(String(x.tier).toLowerCase()))&& (storm|| (ui.mode==='Steel Path'?!!x.isHard:!x.isHard))).map(x=>{
+   const mission=wMissionType(x),node=wNode(x),planet=String(x.planet||node),expires=wDate(wExpiry(x)),remaining=expires?(expires-Date.now())/60000:null;
+   const region=/veil/i.test(planet)?7:/pluto/i.test(planet)?5:/saturn|neptune/i.test(planet)?3:0;
+   let score=storm?(/skirmish|exterminate/i.test(mission)?80:50):(/capture/i.test(mission)?100:/exterminate/i.test(mission)?85:/rescue/i.test(mission)?65:45);
+   if(remaining!==null&&remaining<8)score-=35;
+   if(storm&&gate&&region>gate.max)score-=gate.complete?100:30;
+   const access=storm&&gate&&region>gate.max?(gate.complete?' · intrinsic gate not met':' · check intrinsic gate'):'';
+   return {x,score,remaining,access,blocked:storm&&gate&&gate.complete&&region>gate.max};
+  }).filter(r=>!r.blocked).sort((a,b)=>b.score-a.score||(b.remaining??0)-(a.remaining??0));
+ }
+ function liveSteps(rows,label){
+  return rows.slice(0,5).map(({x,access,remaining})=>step(wNode(x)+' — '+wMissionType(x),String(x.tier||'')+' · '+label+(remaining===null?' · expiry unknown':' · '+wCountdown(wExpiry(x)))+access,wPinButton('fissure',x)));
+ }
+ function primeTargets(){
+  return gear().filter(r=>/\bPrime\b/i.test(r.name)&&!ownedEquip(r)&&!masteredEquip(r)).map(r=>{
+   const p=personalEquipment(r)||{},parts=(r.components||[]).filter(c=>c?.name&&!/orokin cell/i.test(c.name));
+   const ownedPart=c=>Object.entries(p.parts||{}).some(([k,v])=>v&&[c.name,r.name+' '+c.name].some(n=>n.toLowerCase()===k.toLowerCase()))||(/^(blueprint|.* prime blueprint)$/i.test(c.name)&&p.blueprint);
+   const missing=parts.filter(c=>!ownedPart(c));
+   const held=parts.length-missing.length;
+   return {r,p,parts,missing,held,score:(p.farm?1000:0)+(parts.length?held/parts.length*100:0)};
+  }).sort((a,b)=>b.score-a.score||a.r.name.localeCompare(b.r.name));
+ }
+ function primeRelics(target){
+  const matches=[];
+  for(const c of target?.missing||[]){
+   for(const d of c.drops||[]){
+    const name=String(d.location||d.name||'');
+    const m=name.match(/\b(Lith|Meso|Neo|Axi)\s+([A-Z]\d+)\b/i);
+    if(m)matches.push({part:c.name,relic:m[0],tier:m[1].toLowerCase(),rarity:String(d.rarity||''),chance:known(d.chance)?Number(d.chance):null});
+   }
+  }
+  return [...new Map(matches.map(x=>[x.part+'|'+x.relic,x])).values()];
+ }
+ function renderGoal(){
+  const g=pModel(),steps=[],info=[];
+  let controls=select('goalMode','Session goal',goals,ui.goal);
+  if(ui.goal==='helminth'){
+   const a=g.helminth,ready=readyFrames();
+   info.push('Metamorphosis: '+(known(a.metamorphosis)?a.metamorphosis:'unknown')+(known(a.progress)&&known(a.nextThreshold)?' · '+Math.max(0,a.nextThreshold-a.progress).toLocaleString()+' XP to next reward':' · next-rank XP unknown'));
+   if(!known(a.metamorphosis))steps.push(step('Confirm Helminth access and rank','Check the console and record the current rank and XP. If locked, obtain the Helminth Segment first.',openProgress('helminth')));
+   if(ready.length){steps.push(step('Subsuming: start with a mastered, owned base Warframe','Only sacrifice a spare or replaceable copy you are willing to lose permanently. Check the current subsume slot, time and secretions. Subsuming also unlocks an ability.'));for(const r of ready.slice(0,5))steps.push(step(r.name,'Recorded mastered, owned and not subsumed. Confirm it is safe to sacrifice.',edit(r)));}
+   else steps.push(step('Check base Warframes for a safe subsume','No confirmed mastered + owned + not-subsumed candidates in the saved profile. Do not sacrifice an unmastered frame or infer an unknown subsume status.',openProgress('helminth')));
+   steps.push(step('Feed efficiently, then infuse and remove a low-cost ability','Use abundant resources with high appetite; avoid feeding a full secretion. Repeat infusion/removal only while you have spare resources. Compare costs in the console rather than consuming scarce materials.'));
+   steps.push(step('Prepare the next base Warframe','Build or farm a non-Prime frame not yet subsumed; master it first if you still need mastery. Start its subsume when the slot is free.'));
+   info.push('Secretion inventory, appetite and exact infusion costs are not tracked. '+source('https://wiki.warframe.com/w/Helminth','Mechanics reference'));
+  }else if(ui.goal==='railjack'){
+   controls+=select('goalRail','Railjack focus',['Unlock regions / nodes','Earn Intrinsics','Open relics too'],ui.rail);
+   const gate=railGate(g),nodes=pChartNodes(g,'railjack'),unfinished=nodes.filter(n=>['incomplete','available','in-progress','not-completed'].includes(g.nodes.normal[n.id]));
+   const missing=P_INTR.Railjack.filter(n=>!known(g.intrinsics.Railjack[n]));
+   info.push('Highest recorded Intrinsic: '+(gate.values.some(known)?gate.max:'unknown')+' · '+(missing.length?missing.length+' tracks unknown':'all tracks recorded')+' · '+nodes.filter(n=>g.nodes.normal[n.id]==='completed').length+' / '+nodes.length+' catalogue nodes marked complete');
+   if(missing.length)steps.push(step('Confirm your Railjack ranks and access','Missing tracks: '+missing.join(', ')+'. Unknown is not zero. Check your Railjack loadout and unlocked Proxima regions.',openProgress('intrinsics')));
+   const next=[3,5,7].find(n=>n>gate.max);
+   if(ui.rail==='Unlock regions / nodes'&&next&&gate.complete){const top=P_INTR.Railjack.filter(n=>Number(g.intrinsics.Railjack[n])===gate.max);steps.push(step('Reach Intrinsic rank '+next,'Advance an existing high-ranked track ('+top.join(' / ')+') towards the next region gate. Check quest and node prerequisites in Navigation; newer regions may have different requirements.'));}
+   if(ui.rail==='Unlock regions / nodes'&&unfinished.length)for(const n of unfinished.slice(0,5))steps.push(step(n.name+' · '+n.planet,'Recorded not complete; choose only if accessible from your current chart.',openProgress('star')));
+   const farm=step('Luckless Expanse — Venus Proxima Survival','A repeatable Intrinsics farm when accessible. Equip a suitable Warframe and Railjack crew; use an affinity booster if available. Leave when efficiency drops.');
+   const live=liveSteps(liveRows(true,null,gate,g),'Void Storm · Intrinsics + relic opening');
+   if(ui.rail==='Open relics too')steps.push(...live,farm);else steps.push(farm,...live);
+   if(!live.length)steps.push(step('Check Void Storms','No accessible matching Storms confirmed in the loaded feed. Refresh; a Storm can combine Railjack progress with relic opening when you meet its requirements.'));
+   info.push('Live Storms use published mission variants; access, equipment and node connections must be checked in-game. '+source('https://wiki.warframe.com/w/Railjack/Intrinsics','Intrinsics reference'));
+  }else if(ui.goal==='prime'){
+   const targets=primeTargets(),target=targets.find(t=>t.r.name===ui.prime);
+   const top=targets.slice(0,150);if(target&&!top.includes(target))top.push(target);
+   controls+=select('goalPrime','Prime target',[['','Any Prime / general farming'],...top.map(t=>[t.r.name,t.r.name+(t.parts.length?' ('+t.held+'/'+t.parts.length+' recorded)':'')])],ui.prime);
+   controls+=select('goalTier','Relic tier',W_TIERS,ui.tier)+select('goalVariant','Mission variant',['Normal','Steel Path'],ui.mode);
+   const relics=primeRelics(target),tiers=ui.tier==='All'?(target&&relics.length?[...new Set(relics.map(x=>x.tier))]:null):[ui.tier.toLowerCase()];
+   if(target){
+    steps.push(step(target.r.name,target.parts.length?'Parts not confirmed owned: '+(target.missing.map(c=>c.name).join(', ')||'none in catalogue; verify build requirements'):'No component data in catalogue; check Equipment or relic station.',edit(target.r)));
+    if(relics.length)for(const x of relics.slice(0,12))steps.push(step(x.part+' — '+x.relic,'Catalogue drop reference'+(x.rarity?' · '+x.rarity:'')+'. Confirm relic ownership and refinement; availability/vaulting not inferred.'));
+    else steps.push(step('Identify the exact relic in the in-game relic station','Search for the missing component. The current catalogue does not provide a verified relic mapping for this target.'));
+   }else if(targets.length)for(const t of targets.filter(t=>t.held||t.p.farm).slice(0,4))steps.push(step('Near-term target: '+t.r.name,t.parts.length?t.held+' of '+t.parts.length+' catalogue components recorded; '+t.missing.map(c=>c.name).join(', ')+' not confirmed held.':'Pinned or partial item; review requirements.',edit(t.r)));
+   const rows=liveRows(false,tiers,null,g).filter(r=>!['requiem','omnia'].includes(String(r.x.tier).toLowerCase())||ui.tier==='Omnia');
+   if(rows.length)steps.push(...liveSteps(rows,'Fissure · '+ui.mode+' · check relic'));
+   else steps.push(step('No matching fissure confirmed','Refresh live missions or change relic tier / variant. Do not run an unrelated tier for a specific relic.'));
+   steps.push(step('Refine for the intended reward','For a rare target, use Radiant relics and preferably a matching four-player radshare. For a common target, intact relics are generally better. Collect ten Reactant before extraction.'));
+   info.push('Relic quantities, Void Traces, squad availability and real completion times are not tracked. Capture / Exterminate are ranked as short-run candidates, not measured fastest routes. '+source('https://wiki.warframe.com/w/Void_Relic','Relic reference'));
+  }else if(ui.goal==='mastery'){
+   const ready=gear().filter(r=>ownedEquip(r)&&!masteredEquip(r)).map(r=>({r,rank:typeof mRankInfo==='function'?mRankInfo(r):{cap:30,rate:100}})).sort((a,b)=>b.rank.rate-a.rank.rate||a.r.name.localeCompare(b.r.name));
+   info.push(ready.length+' owned, unmastered items recorded. XP remaining per item is not assumed from ownership.');
+   for(const {r,rank} of ready.slice(0,8))steps.push(step(r.name,'Level for mastery · '+rank.rate+' XP per first-time rank (up to applicable cap).',edit(r)));
+   steps.push(step('Combine equipment XP with your chosen farm','Bring unmastered gear only if it will not compromise your mission. Public affinity farming, e.g. Sanctuary Onslaught for appropriate gear, is an alternative.'));
+   steps.push(step('Check unfinished Intrinsics','Each newly earned Intrinsic rank gives mastery XP; review your Railjack and Drifter ranks.',openProgress('intrinsics')));
+  }else if(ui.goal==='mods'){
+   const tasks=tasksData().filter(t=>t.id?.startsWith('mod:')||t.id?.startsWith('arc:'));
+   for(const t of tasks.slice(0,12))steps.push(step(t.name,t.detail+' · check the drop source and rotation before farming.',button('Open','open-task','data-key="'+enc(t.id)+'"','small')));
+   if(!tasks.length)steps.push(step('Pin the missing mods or Arcanes you want','Mark a farming target in your collection; it will appear here on your next visit.'));
+   info.push('Drop probabilities and overlapping reward tables are not yet scored.');
+  }else if(ui.goal==='drifter'){
+   const ranks=g.intrinsics.Drifter;info.push(P_INTR.Drifter.map(n=>n+': '+(known(ranks[n])?ranks[n]:'unknown')).join(' · '));
+   steps.push(step('Review your Drifter ranks and unspent points','Spend earned points on the unlocks you need. Unknown ranks are not counted as missing.',openProgress('intrinsics')));
+   steps.push(step('Run Duviri Experience','Complete objectives and efficient nearby side activities for Intrinsics and decrees; progress the story and leave at a safe save point.'));
+   steps.push(step('Choose Circuit if you also need its weekly rewards','Check the available reward path and eligibility first; do not assume it shares every Duviri objective.'));
+  }else{
+   steps.push(step('Pick a session goal','Choose a system above to get an ordered route instead of the general task backlog.'));
+   steps.push(step('Level owned gear or finish a partially built item','Your existing personal priorities below are retained.'));
+  }
+  const liveNeeded=['prime','railjack'].includes(ui.goal);
+  if(liveNeeded&&!W_DASH.attempted&&!W_DASH.loading)Promise.resolve().then(()=>{if(state.page==='planner')wFetch();});
+  const fresh=liveNeeded?'<div class="editline"><span class="muted tiny">'+esc(W_DASH.loading?'Refreshing live world…':W_DASH.error|| (W_DASH.fetchedAt?'Live snapshot: '+new Date(W_DASH.fetchedAt).toLocaleString():'Live feed not yet loaded'))+'</span><button class="button small" data-goal-refresh>Refresh live missions</button></div>':'';
+  return '<section class="panel" style="margin:12px 0"><h2>Goal-driven recommendations</h2><p class="muted tiny">Choose what you want to achieve this session. Routes use your saved progress and available mission data; verify unrecorded prerequisites in-game.</p><div class="formgrid">'+controls+'</div>'+fresh+(!state.profileImported?'<p class="notice">Import your private profile for personalised progress. Recommendations are provisional.</p>':'')+info.map(x=>'<p class="helptext">'+x+'</p>').join('')+'<h3>Recommended route (in priority order)</h3>'+steps.map((x,i)=>'<div class="task" style="align-items:flex-start"><span class="pill '+(i===0?'gold':'')+'">'+(i+1)+'</span><div style="flex:1;min-width:0"><div class="taskname">'+esc(x.name)+'</div><div class="tasksublabel" style="white-space:normal">'+esc(x.detail)+'</div></div>'+x.extra+'</div>').join('')+'</section>';
+ }
+ const original=plannerPage;
+ plannerPage=function(){const base=original();const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
+ document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail'}[e.target.id];if(!k)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
+ document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh]');if(!el)return;if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
+})();
