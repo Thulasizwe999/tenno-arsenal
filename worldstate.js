@@ -345,12 +345,14 @@ if(state.page==='overview')render();
    info.push('Secretion inventory, appetite and exact infusion costs are not tracked. '+source('https://wiki.warframe.com/w/Helminth','Mechanics reference'));
   }else if(ui.goal==='railjack'){
    controls+=select('goalRail','Railjack focus',['Unlock regions / nodes','Earn Intrinsics','Open relics too'],ui.rail);
-   const gate=railGate(g),nodes=pChartNodes(g,'railjack'),unfinished=nodes.filter(n=>['incomplete','available','in-progress','not-completed'].includes(g.nodes.normal[n.id]));
+   const gate=railGate(g),nodes=pChartNodes(g,'railjack'),unfinished=nodes.filter(n=>['not-started','outstanding','in-progress','available'].includes(g.nodes.normal[n.id]));
    const missing=P_INTR.Railjack.filter(n=>!known(g.intrinsics.Railjack[n]));
    info.push('Highest recorded Intrinsic: '+(gate.values.some(known)?gate.max:'unknown')+' · '+(missing.length?missing.length+' tracks unknown':'all tracks recorded')+' · '+nodes.filter(n=>g.nodes.normal[n.id]==='completed').length+' / '+nodes.length+' catalogue nodes marked complete');
    if(missing.length)steps.push(step('Confirm your Railjack ranks and access','Missing tracks: '+missing.join(', ')+'. Unknown is not zero. Check your Railjack loadout and unlocked Proxima regions.',openProgress('intrinsics')));
+   const unspent=g.intrinsicsUnspent?.Railjack;
+   if(known(unspent)&&Number(unspent)>0)steps.push(step('Spend existing Intrinsic points first',Number(unspent)+' unspent points recorded. Review available upgrades before farming more.',openProgress('intrinsics')));
    const next=[3,5,7].find(n=>n>gate.max);
-   if(ui.rail==='Unlock regions / nodes'&&next&&gate.complete){const top=P_INTR.Railjack.filter(n=>Number(g.intrinsics.Railjack[n])===gate.max);steps.push(step('Reach Intrinsic rank '+next,'Advance an existing high-ranked track ('+top.join(' / ')+') towards the next region gate. Check quest and node prerequisites in Navigation; newer regions may have different requirements.'));}
+   if(ui.rail==='Unlock regions / nodes'&&next&&gate.complete){const top=P_INTR.Railjack.filter(n=>Number(g.intrinsics.Railjack[n])===gate.max);const cost=2**next-2**gate.max;steps.push(step('Reach Intrinsic rank '+next,'Advance an existing high-ranked track ('+top.join(' / ')+'). Estimated points to gate: '+cost+(known(unspent)?' · '+Math.max(0,cost-Number(unspent))+' more points needed after recorded unspent points':' · unspent points unknown')+'. Check quest and node prerequisites in Navigation; newer regions may have different requirements.'));}
    if(ui.rail==='Unlock regions / nodes'&&unfinished.length)for(const n of unfinished.slice(0,5))steps.push(step(n.name+' · '+n.planet,'Recorded not complete; choose only if accessible from your current chart.',openProgress('star')));
    const farm=step('Luckless Expanse — Venus Proxima Survival','A repeatable Intrinsics farm when accessible. Equip a suitable Warframe and Railjack crew; use an affinity booster if available. Leave when efficiency drops.');
    const live=liveSteps(liveRows(true,null,gate,g),'Void Storm · Intrinsics + relic opening');
@@ -359,7 +361,7 @@ if(state.page==='overview')render();
    info.push('Live Storms use published mission variants; access, equipment and node connections must be checked in-game. '+source('https://wiki.warframe.com/w/Railjack/Intrinsics','Intrinsics reference'));
   }else if(ui.goal==='prime'){
    const targets=primeTargets(),target=targets.find(t=>t.r.name===ui.prime);
-   const top=targets.slice(0,150);if(target&&!top.includes(target))top.push(target);
+   const top=targets;
    controls+=select('goalPrime','Prime target',[['','Any Prime / general farming'],...top.map(t=>[t.r.name,t.r.name+(t.parts.length?' ('+t.held+'/'+t.parts.length+' recorded)':'')])],ui.prime);
    controls+=select('goalTier','Relic tier',W_TIERS,ui.tier)+select('goalVariant','Mission variant',['Normal','Steel Path'],ui.mode);
    const relics=primeRelics(target),tiers=ui.tier==='All'?(target&&relics.length?[...new Set(relics.map(x=>x.tier))]:null):[ui.tier.toLowerCase()];
