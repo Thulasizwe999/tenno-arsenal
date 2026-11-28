@@ -320,17 +320,90 @@ if(state.page==='overview')render();
    return {r,p,parts,missing,held,score:(p.farm?1000:0)+(parts.length?held/parts.length*100:0)};
   }).sort((a,b)=>b.score-a.score||a.r.name.localeCompare(b.r.name));
  }
+
+ const dropData={relics:null,missions:null,loading:false,attempted:false,error:'',at:null};
+ const base='https://raw.githubusercontent.com/WFCD/warframe-drop-data/main/data/';
+ async function loadDropFile(name){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  try{const res=await fetch(base+name+'.json',{signal:controller.signal,cache:'no-cache'});if(!res.ok)throw Error(name+' HTTP '+res.status);return await res.json();}finally{clearTimeout(timer);}
+ }
+ async function loadDropData(){
+  if(dropData.loading)return;
+  dropData.loading=true;dropData.attempted=true;dropData.error='';
+  const results=await Promise.allSettled([loadDropFile('relics'),loadDropFile('missionRewards')]);
+  const a=results[0],b=results[1];
+  if(a.status==='fulfilled'){
+   const v=Array.isArray(a.value)?a.value:a.value?.relics;
+   if(Array.isArray(v)&&v.some(x=>x.tier&&x.relicName&&Array.isArray(x.rewards)))dropData.relics=v;
+  }
+  if(b.status==='fulfilled'){
+   const v=b.value?.missionRewards||b.value;
+   if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).some(x=>x&&typeof x==='object'))dropData.missions=v;
+  }
+  dropData.error=[!dropData.relics?'relic tables unavailable':'',!dropData.missions?'mission tables unavailable':''].filter(Boolean).join('; ');
+  if(dropData.relics||dropData.missions)dropData.at=new Date().toISOString();
+  dropData.loading=false;if(state.page==='planner')render();
+ }
+ const norm=s=>String(s??'').trim().toLowerCase().replace(/\s+/g,' ');
+ function relicLabel(x){return String(x.tier)+' '+String(x.relicName).replace(new RegExp('^'+x.tier+'\\s+','i'),'');}
+ function rewardNames(target,c){
+  const n=norm(c.name),item=norm(target.r.name);
+  const full=n.startsWith(item+' ')?n:item+' '+n;
+  return new Set([full,full.replace(/ blueprint$/,'')]);
+ }
  function primeRelics(target){
   const matches=[];
   for(const c of target?.missing||[]){
-   for(const d of c.drops||[]){
+   const names=rewardNames(target,c);
+   for(const rel of dropData.relics||[]){
+    if(!/^(lith|meso|neo|axi)$/i.test(rel.tier))continue;
+    for(const reward of rel.rewards||[]){
+     if(!names.has(norm(reward.itemName))||!known(reward.chance)||Number(reward.chance)<=0)continue;
+     matches.push({part:c.name,relic:relicLabel(rel),tier:norm(rel.tier),rarity:String(reward.rarity||''),chance:Number(reward.chance),refinement:String(rel.state||'Unspecified'),published:true});
+    }
+   }
+   if(!matches.some(x=>x.part===c.name))for(const d of c.drops||[]){
     const name=String(d.location||d.name||'');
     const m=name.match(/\b(Lith|Meso|Neo|Axi)\s+([A-Z]\d+)\b/i);
-    if(m)matches.push({part:c.name,relic:m[0],tier:m[1].toLowerCase(),rarity:String(d.rarity||''),chance:known(d.chance)?Number(d.chance):null});
+    if(m)matches.push({part:c.name,relic:m[0],tier:m[1].toLowerCase(),rarity:String(d.rarity||''),chance:null,published:false});
    }
   }
-  return [...new Map(matches.map(x=>[x.part+'|'+x.relic,x])).values()];
+  const best=new Map();
+  for(const x of matches){const k=x.part+'|'+x.relic,prev=best.get(k);if(!prev||(x.chance??-1)>(prev.chance??-1)||x.chance===prev.chance&&x.refinement==='Intact')best.set(k,x);}
+  return [...best.values()].sort((a,b)=>(b.chance??-1)-(a.chance??-1)||a.relic.localeCompare(b.relic));
  }
+ function relicMissionSources(relics){
+  const wanted=new Set(relics.map(x=>norm(x.relic))),rows=[];
+  if(!wanted.size)return rows;
+  for(const [planet,places] of Object.entries(dropData.missions||{})){
+   if(!places||typeof places!=='object')continue;
+   for(const [node,mission] of Object.entries(places)){
+    if(!mission||!mission.rewards||mission.isEvent)continue;
+    const groups=Array.isArray(mission.rewards)?[['Completion',mission.rewards]]:Object.entries(mission.rewards);
+    for(const [rotation,items] of groups){
+     if(!Array.isArray(items))continue;
+     for(const item of items){
+      const m=norm(item.itemName).match(/^((?:lith|meso|neo|axi) [a-z]\d+)(?: relic)?(?: \((?:intact|exceptional|flawless|radiant)\))?$/);
+      if(!m||!wanted.has(m[1])||!known(item.chance)||Number(item.chance)<=0)continue;
+      rows.push({planet,node,rotation,mode:String(mission.gameMode||''),relic:item.itemName,chance:Number(item.chance)});
+     }
+    }
+   }
+  }
+  return rows.sort((a,b)=>b.chance-a.chance||a.node.localeCompare(b.node));
+ }
+ function publishedRelicSteps(relics){
+  const groups=new Map();
+  for(const x of relics){if(!groups.has(x.part))groups.set(x.part,[]);groups.get(x.part).push(x);}
+  const result=[];
+  for(const [part,items] of groups)for(const x of items.slice(0,3)){
+   const p=x.chance;
+   const detail=x.published?x.refinement+' · '+p.toFixed(2)+'% per opened relic · '+(100*(1-(1-p/100)**4)).toFixed(1)+'% with four independent matching relics (radshare if Radiant). Confirm ownership.':'Catalogue reference only; drop probability not verified.';
+   result.push(step(part+' — '+x.relic,detail));
+  }
+  return result;
+ }
+
  function renderGoal(){
   const g=pModel(),steps=[],info=[];
   let controls=select('goalMode','Session goal',goals,ui.goal);
@@ -364,14 +437,16 @@ if(state.page==='overview')render();
    const top=targets;
    controls+=select('goalPrime','Prime target',[['','Any Prime / general farming'],...top.map(t=>[t.r.name,t.r.name+(t.parts.length?' ('+t.held+'/'+t.parts.length+' recorded)':'')])],ui.prime);
    controls+=select('goalTier','Relic tier',W_TIERS,ui.tier)+select('goalVariant','Mission variant',['Normal','Steel Path'],ui.mode);
+   if(target&&!dropData.attempted&&!dropData.loading)Promise.resolve().then(()=>{if(state.page==='planner')loadDropData();});
+   if(target)info.push('Published drop data: '+esc(dropData.loading?'loading…':dropData.error|| (dropData.at?'retrieved '+new Date(dropData.at).toLocaleString():'not loaded'))+' · '+source('https://github.com/WFCD/warframe-drop-data','WFCD / Digital Extremes drop tables')+' · <button class="button small" data-goal-drops>Refresh drop data</button>');
    const relics=primeRelics(target),tiers=ui.tier==='All'?(target&&relics.length?[...new Set(relics.map(x=>x.tier))]:null):[ui.tier.toLowerCase()];
    if(target){
     steps.push(step(target.r.name,target.parts.length?'Parts not confirmed owned: '+(target.missing.map(c=>c.name).join(', ')||'none in catalogue; verify build requirements'):'No component data in catalogue; check Equipment or relic station.',edit(target.r)));
-    if(relics.length)for(const x of relics.slice(0,12))steps.push(step(x.part+' — '+x.relic,'Catalogue drop reference'+(x.rarity?' · '+x.rarity:'')+'. Confirm relic ownership and refinement; availability/vaulting not inferred.'));
+    if(relics.length){steps.push(...publishedRelicSteps(relics));const routes=relicMissionSources(relics);if(routes.length){steps.push(step('If you need to acquire the relic first','Published mission rewards ranked by probability per listed rotation, not by time. Check node access and rotation requirements.'));for(const x of routes.slice(0,6))steps.push(step(x.node+' ('+x.planet+') — '+x.relic,x.mode+' · '+x.rotation+' · '+x.chance.toFixed(2)+'% per listed reward roll'));}else if(dropData.missions)steps.push(step('No matching standard mission drop found','This does not prove a relic is vaulted. Check bounties, vendors, relic packs, trading or existing inventory.'));}
     else steps.push(step('Identify the exact relic in the in-game relic station','Search for the missing component. The current catalogue does not provide a verified relic mapping for this target.'));
    }else if(targets.length)for(const t of targets.filter(t=>t.held||t.p.farm).slice(0,4))steps.push(step('Near-term target: '+t.r.name,t.parts.length?t.held+' of '+t.parts.length+' catalogue components recorded; '+t.missing.map(c=>c.name).join(', ')+' not confirmed held.':'Pinned or partial item; review requirements.',edit(t.r)));
    const rows=liveRows(false,tiers,null,g).filter(r=>!['requiem','omnia'].includes(String(r.x.tier).toLowerCase())||ui.tier==='Omnia');
-   if(rows.length)steps.push(...liveSteps(rows,'Fissure · '+ui.mode+' · check relic'));
+   if(rows.length&&(!target||relics.length))steps.push(...liveSteps(rows,'Fissure · '+ui.mode+' · check relic'));
    else steps.push(step('No matching fissure confirmed','Refresh live missions or change relic tier / variant. Do not run an unrelated tier for a specific relic.'));
    steps.push(step('Refine for the intended reward','For a rare target, use Radiant relics and preferably a matching four-player radshare. For a common target, intact relics are generally better. Collect ten Reactant before extraction.'));
    info.push('Relic quantities, Void Traces, squad availability and real completion times are not tracked. Capture / Exterminate are ranked as short-run candidates, not measured fastest routes. '+source('https://wiki.warframe.com/w/Void_Relic','Relic reference'));
@@ -403,5 +478,5 @@ if(state.page==='overview')render();
  const original=plannerPage;
  plannerPage=function(){const base=original();const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
  document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail'}[e.target.id];if(!k)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
- document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh]');if(!el)return;if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
+ document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops]');if(!el)return;if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
 })();
