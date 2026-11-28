@@ -487,7 +487,7 @@ if(state.page==='overview')render();
   if(/cache|extra|bonus/i.test(m+' '+node))return {min:null,how:'Complete the exact cache/bonus requirement; not an ordinary mission-clear roll.'};
   if(/survival/.test(m)&&cycle)return {min:5*cycle,how:'First '+rot+' reward after '+(5*cycle)+' min in the usual AABC cycle; verify special variants.'};
   if(/defen[cs]e/.test(m)&&cycle&&!/mirror|mobile|void armageddon|railjack|tyana/.test(m+' '+node))return {min:null,how:'Reach the '+rot+' reward rotation; wave length depends on the mission variant.'};
-  if(/spy/.test(m)&&cycle)return {min:null,how:'Secure '+cycle+' data vault'+(cycle===1?'':'s')+' only if rotation mapping matches; check vault requirements.'};
+  if(/spy/.test(m)&&cycle){const vaults={A:1,B:2,C:3}[rot];return {min:null,how:'Successfully retrieve '+vaults+' data vault'+(vaults===1?'':'s')+' for this reward rotation; verify special variants.'};}
   if(/capture/.test(m))return {min:3,how:'Complete Capture and extract. Rough 3-minute planning assumption.'};
   if(/exterminate|assassination/.test(m))return {min:5,how:'Complete the objective and extract. Rough 5-minute planning assumption.'};
   return {min:null,how:rot==='COMPLETION'?'Complete the stated mission objective.':'Reach the listed reward rotation or stage.'};
@@ -511,9 +511,9 @@ if(state.page==='overview')render();
    const entries=farmDB.data[file];if(!entries)continue;
    const visit=(v,path=[],depth=0)=>{
     if(!v||typeof v!=='object'||depth>7)return;
-    if(v.itemName&&known(v.chance)){add(v.itemName,{kind:'activity',name:label,mode:path.filter(Boolean).join(' · '),rotation:v.stage||'',chance:chance(v.chance),source:file});return;}
+    if(v.itemName&&known(v.chance)){add(v.itemName,{kind:'activity',name:label,mode:path.filter(Boolean).join(' · '),rotation:v.stage||v.rotation||'',chance:chance(v.chance),source:file});return;}
     if(Array.isArray(v)){for(const x of v)visit(x,path,depth+1);return;}
-    const descriptor=v.bountyLevel||v.missionName||v.location||v.name||v.title||v.gameMode||'';
+    const descriptor=v.bountyLevel||v.missionName||v.keyName||v.objectiveName||v.location||v.name||v.title||v.gameMode||'';
     for(const [k,x] of Object.entries(v))if(x&&typeof x==='object')visit(x,[...path,...(descriptor?[String(descriptor)]:[]),...(!['rewards','items','drops','_id'].includes(k)&&!descriptor&&k!=='0'?[k]:/^[ABC]$/.test(k)?['Rotation '+k]:[])],depth+1);
    };visit(entries);
   }
@@ -527,7 +527,7 @@ if(state.page==='overview')render();
   return all;
  }
  function acquisitionRows(name,g){
-  const idx=buildFarmIndex(),rows=[];for(const k of itemAliases(name))rows.push(...(idx.get(k)?.rows||[]));
+  const idx=buildFarmIndex(),rows=[],nodes=pChartNodes(g,'origin');for(const k of itemAliases(name))rows.push(...(idx.get(k)?.rows||[]));
   const catalogue=[...gear(),...allMods(),...allArcanes()].filter(x=>itemKey(x.name)===itemKey(name));
   for(const item of catalogue)for(const d of item.drops||[])if(d.location)rows.push({kind:'catalogue',name:d.location,chance:null,source:'Warframe Items'});
   for(const [n,detail] of resourceSites[itemKey(name)]||[])rows.push({kind:'guide',name:n,detail,source:'Wiki resource guide'});
@@ -537,7 +537,7 @@ if(state.page==='overview')render();
    let label=x.name,detail='',score=0,time=null;
    if(x.kind==='mission'){
     const t=rewardTime(x.mode,x.rotation,x.node);time=t.min;
-    const node=pChartNodes(g,'origin').find(n=>norm(n.name)===norm(x.node)&&norm(n.planet)===norm(x.planet));
+    const node=nodes.find(n=>norm(n.name)===norm(x.node)&&norm(n.planet)===norm(x.planet));
     const status=node?g.nodes.normal[node.id]:null;
     if(x.event)score-=1000;if(status==='locked')score-=1000;
     detail=x.mode+' · '+x.rotation+' · '+(x.chance===null?'probability unknown':x.chance.toFixed(2)+'% per listed reward roll')+' · '+t.how+(x.event?' Limited-time; check active event.':'')+(status==='locked'?' Recorded locked.':status==='completed'?' Node recorded complete.':' Confirm node access.');
@@ -582,7 +582,7 @@ if(state.page==='overview')render();
    const rows=acquisitionRows(t.name,g);
    steps.push(step('Target: '+t.name,(equipment?'Recipe entry · '+t.count+' required in catalogue; check actual stock. ':'')+(rows.length?rows.length+' matching acquisition records.':'No exact acquisition match in loaded sources.'),source(wiki(t.name),'Wiki acquisition')));
    const groups=new Set();let shown=0;
-   for(const x of rows){const k=x.kind+'|'+x.label;if(groups.has(k))continue;groups.add(k);steps.push(step(x.label,x.detail,source(wiki(x.kind==='enemy'||x.kind==='resource'?x.name:t.name),'Wiki')));if(++shown>=(targets.length>1?3:12))break;}
+   for(const x of rows){const k=x.kind+'|'+x.label+'|'+(x.mode||'')+'|'+(x.rotation||'');if(groups.has(k))continue;groups.add(k);steps.push(step(x.label,x.detail,source(wiki(x.kind==='enemy'||x.kind==='resource'?x.name:t.name),'Wiki')));if(++shown>=(targets.length>1?3:12))break;}
    if(!rows.length&&!farmDB.loading)steps.push(step('Check alternate acquisition','Search the Wiki for quest rewards, Market / Dojo blueprints, shops, enemy spawn locations or other non-drop-table mechanics. No invented mission.',source(wiki(t.name),'Search Wiki')));
    const relicRows=rows.filter(x=>x.kind==='relic');if(relicRows.length)steps.push(step('Find matching fissures','For targeted Prime parts use the Prime planner to match active fissures and relic acquisition.'));
   }
@@ -668,7 +668,7 @@ if(state.page==='overview')render();
  }
  document.addEventListener('keydown',e=>{if(e.target.id==='goalFarmTarget'&&e.key==='Enter'){e.preventDefault();ui.farmTarget=e.target.value;farmSave();render();}});
  const original=plannerPage;
- plannerPage=function(){let base=original();base=base.replace(/(<button\b[^>]*data-action="open-task"[^>]*data-key="([^"]+)"[^>]*>Open<\/button>)/g,(full,tag,key)=>{try{const id=dec(key);if(!id.startsWith('level:'))return full;const r=gear().find(x=>ek(x.category,x.name)===id.slice(6));return r?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+levelLink(r)+full+'</div>':full;}catch(e){return full;}});const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
+ plannerPage=function(){let base=original();base=base.replace(/(<button\b[^>]*data-action="open-task"[^>]*data-key="([^"]+)"[^>]*>Open<\/button>)/g,(full,tag,key)=>{try{const id=dec(key);if(!id.startsWith('level:')){const t=tasksData().find(x=>x.id===id);return t&&/^(farm|craft|mod|arc):/.test(id)?'<div style="display:flex;flex-wrap:wrap;gap:4px"><button class="button small" data-goal-farm-item="'+esc(t.name)+'">Where to farm</button>'+full+'</div>':full;}const r=gear().find(x=>ek(x.category,x.name)===id.slice(6));return r?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+levelLink(r)+full+'</div>':full;}catch(e){return full;}});const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
  document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail',goalLevelCategory:'levelCategory',goalLevelItem:'levelItem',goalLevelDifficulty:'levelDifficulty',goalLevelObjective:'levelObjective',goalFarmMode:'farmMode',goalFarmPinned:'farmTarget',goalFarmTarget:'farmTarget'}[e.target.id];if(!k)return;if(e.target.id==='goalFarmPinned'&&!e.target.value)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
- document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops],[data-goal-level],[data-goal-farm-search],[data-goal-farm-refresh],[data-goal-farm-item]');if(!el)return;if(el.hasAttribute('data-goal-farm-search')||el.hasAttribute('data-goal-farm-item')){ui.farmTarget=el.dataset.goalFarmItem||document.getElementById('goalFarmTarget')?.value||ui.farmTarget;farmSave();render();return;}if(el.hasAttribute('data-goal-farm-refresh')){farmLoad(true);render();return;}if(el.hasAttribute('data-goal-level')){const r=gear().find(x=>ek(x.category,x.name)===el.dataset.goalLevel);if(!r)return;ui.goal=r.category==='Necramechs'?'necramech':'levelgear';ui.levelCategory=r.category;ui.levelItem=el.dataset.goalLevel;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}go('planner');return;}if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
+ document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops],[data-goal-level],[data-goal-farm-search],[data-goal-farm-refresh],[data-goal-farm-item]');if(!el)return;if(el.hasAttribute('data-goal-farm-search')||el.hasAttribute('data-goal-farm-item')){ui.farmTarget=el.dataset.goalFarmItem||document.getElementById('goalFarmTarget')?.value||ui.farmTarget;if(!['mods','farmany'].includes(ui.goal))ui.goal='farmany';farmSave();go('planner');return;}if(el.hasAttribute('data-goal-farm-refresh')){farmLoad(true);render();return;}if(el.hasAttribute('data-goal-level')){const r=gear().find(x=>ek(x.category,x.name)===el.dataset.goalLevel);if(!r)return;ui.goal=r.category==='Necramechs'?'necramech':'levelgear';ui.levelCategory=r.category;ui.levelItem=el.dataset.goalLevel;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}go('planner');return;}if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
 })();
