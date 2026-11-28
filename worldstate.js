@@ -276,8 +276,8 @@ if(state.page==='overview')render();
 
 /* Goal-driven session planner: local preferences, existing personal data, live feed. */
 (function installGoalPlanner(){
- const goals=[['general','General priorities'],['helminth','Rank up Helminth'],['railjack','Progress Railjack'],['prime','Farm Prime parts'],['mastery','Gain mastery XP'],['mods','Farm mods / Arcanes'],['drifter','Progress Drifter Intrinsics']];
- const ui={goal:'general',mode:'Normal',tier:'All',prime:'',rail:'Unlock regions / nodes'};
+ const goals=[['general','General priorities'],['helminth','Rank up Helminth'],['railjack','Progress Railjack'],['prime','Farm Prime parts'],['mastery','Gain mastery XP'],['necramech','Rank up Necramech'],['levelgear','Rank up equipment'],['mods','Farm mods / Arcanes'],['drifter','Progress Drifter Intrinsics']];
+ const ui={goal:'general',mode:'Normal',tier:'All',prime:'',rail:'Unlock regions / nodes',levelCategory:'Warframes',levelItem:'',levelDifficulty:'Comfortable / solo',levelObjective:'Rank + extra rewards'};
  try{const saved=JSON.parse(localStorage.getItem('tenno-session-goal-v1')||'{}');for(const k of Object.keys(ui))if(typeof saved[k]==='string')ui[k]=saved[k];}catch(e){}
  if(!goals.some(x=>x[0]===ui.goal))ui.goal='general';
  const known=x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(Number(x));
@@ -404,6 +404,47 @@ if(state.page==='overview')render();
   return result;
  }
 
+
+ function levelEligible(r){const rank=mRankInfo(r);return rank.cap>0&&ownedEquip(r)&& (known(r.masteryEarnedRank)?Number(r.masteryEarnedRank)<rank.cap:!masteredEquip(r)||rank.cap>30);}
+ function levelLink(r){return '<button class="button small" data-goal-level="'+esc(ek(r.category,r.name))+'">Where to level</button>';}
+ function levelRoutes(category,g,steps,info){
+  const advanced=ui.levelDifficulty==='Strong build / squad',stack=ui.levelObjective==='Rank + extra rewards';
+  const add=(name,detail,url)=>steps.push(step(name,detail,url?source(url,'Wiki'):''));
+  const rail=railGate(g),tac=g.intrinsics.Railjack.Tactical,lab=g.quests['Whispers in the Walls'],mech=category==='Necramechs';
+  if(mech){
+   const tacOK=known(tac)&&Number(tac)>=5,labOK=lab==='completed';
+   info.push('Tactical Intrinsic: '+(known(tac)?esc(tac):'unknown')+' / 5 required for Railjack mech deployment. Whispers in the Walls: '+esc(lab||'not recorded')+'.');
+   if(tacOK){
+    const storms=liveRows(true,null,rail,g).filter(({x,access,remaining})=>/survival/i.test(wMissionType(x))&&!x.isHard&&!access&&(remaining===null||remaining>=8));
+    if(stack&&storms.length)for(const {x,remaining} of storms.slice(0,3))steps.push(step(wNode(x)+' — LIVE Void Storm Survival','Equip the Necramech, summon it after boarding the Corpus ship, and collect affinity while opening '+esc(x.tier||'eligible')+' relics and earning Railjack Intrinsics. '+(remaining===null?'Check expiry.':wCountdown(wExpiry(x))),wPinButton('fissure',x)));
+    if(advanced&&rail.max>=7)add('Lu-yan — Veil Proxima · Survival','Higher-level Corpus survival. Summon your mech inside the ship and use its abilities for kills. Extra: Railjack Intrinsics, Tellurium and Ambassador blueprint at rotation C (20 minutes). Check node access.', 'https://wiki.warframe.com/w/Tellurium_Farming_Guide');
+    add('Luckless Expanse — Venus Proxima · Survival','Lower-level Corpus enemies (22–25). Finish the Railjack approach, then deploy your mech inside the ship. Fight in the mech and extract when ranked or at a safe rotation. Extra: Railjack Intrinsics and mission rewards. Verify node is unlocked.', 'https://wiki.warframe.com/w/Survival');
+    if(!advanced&&rail.max>=7)add('Lu-yan — Veil Proxima · Survival','Higher-level alternative if your mech can survive and kill efficiently; also offers Ambassador blueprint on rotation C and Tellurium.','https://wiki.warframe.com/w/Tellurium_Farming_Guide');
+   }
+   if(labOK)add('Persto — Deimos · Survival (Albrecht’s Laboratories)','Use a POM-2 console at a Necramech dispenser to deploy your personal mech. Kill enemies in the mech; also collect Laboratory resources and Survival rewards. Check dispenser availability.','https://wiki.warframe.com/w/Albrecht%27s_Laboratories');
+   add('Orb Vallis — Temple of Profit · base capture / reinforcement farm','No Railjack Intrinsic needed. Capture a Corpus base using its dropped datamass, summon your mech, and kill incoming reinforcements; extract safely to Fortuna. Extra: Vallis resources and possible Sola Toroids near Temple of Profit.','https://wiki.warframe.com/w/Orb_Vallis');
+   add('Yuvarium — Lua · Conjunction Survival','Accessible after the relevant story unlock; use Necramech Summon when available. Mech use is time-limited with a cooldown, so this is a fallback rather than the main dedicated affinity farm. Extra: Lua Thrax Plasm.','https://wiki.warframe.com/w/Conjunction_Survival');
+   if(!tacOK)steps.push(step(known(tac)?'Unlock Tactical rank 5 for Railjack leveling':'Confirm Tactical rank before choosing Railjack',known(tac)?'You need '+(32-2**Number(tac))+' more total Intrinsic points before accounting for unspent points. Until then use Orb Vallis or another accessible non-Railjack option.':'Railjack personal mech deployment requires Tactical 5; not enough saved information to recommend it as ready.',openProgress('intrinsics')));
+   if(!labOK&&lab!=='not-started')info.push('Persto is an additional option after Whispers in the Walls; quest access not confirmed.');
+   info.push('Necramechs gain mastery up to 40 with five Forma (+2 cap each). Re-earned ranks do not award mastery again. Use mech ability kills for mech affinity; a weapon kill can split affinity with the equipped Archgun. An affinity booster helps. No measured XP/min is available.');
+  }else if(['Arch-Guns','Arch-Melees'].includes(category)){
+   add('Salacia — Neptune · Archwing Mobile Defense','Equip the item in your Archwing loadout and protect the objectives. Public squad recommended; check Archwing node access.','https://wiki.warframe.com/w/Affinity');
+   if(category==='Arch-Guns')add('Luckless Expanse — Venus Proxima · Survival','Alternative: equip the Archgun on your Necramech, if owned and Tactical 5 is unlocked. Earn Intrinsics while ranking it.','https://wiki.warframe.com/w/Necramech');
+  }else if(category==='Vehicles'){
+   add('Salacia — Neptune · Archwing Mobile Defense','For Archwings only: equip the unranked Archwing, complete the objectives and stay near squadmates for shared affinity.','https://wiki.warframe.com/w/Affinity');
+   add('Orb Vallis — K-Drive races','For K-Drives only: equip the board and complete available races or trick chains. Do not use the Archwing route for boards.','https://wiki.warframe.com/w/K-Drive');
+  }else if(category==='Amps'){
+   add('Cetus / Plains of Eidolon — low-level bounties','Equip the Amp and make Operator kills or receive shared affinity while in Operator form. Choose a bounty you can safely complete.','https://wiki.warframe.com/w/Amp');
+  }else{
+   const weapon=['Primary','Secondary','Melee','Adversary Weapons','Modular'].includes(category);
+   if(weapon)add('Elite Sanctuary Onslaught — Navigation / Syndicates','Use a qualifying Warframe (rank 30, or MR30+ eligible Forma-reset frame), equip the target weapon and stay within affinity range. High enemy density; avoid taking unnecessary other weapons.','https://wiki.warframe.com/w/Sanctuary_Onslaught');
+   add('Sanctuary Onslaught — Navigation / Syndicates','Complete The New Strange for access. Use ordinary Sanctuary Onslaught for ranking Warframes; use Warframe abilities for frame affinity, or squad affinity for equipment.','https://wiki.warframe.com/w/Affinity');
+   add(stack?'Helene — Saturn · Defense':'Hydron — Sedna · Defense',stack?'Fight in a public squad or solo as comfortable. Extra: Orokin Cells and Plastids. Extract at a safe wave boundary.':'Use a public squad for shared affinity; extract at a safe wave boundary.','https://wiki.warframe.com/w/Affinity');
+   if(stack)add('Hydron — Sedna · Defense','Alternative for a higher-level squad Defense farm. Check access and kill speed.','https://wiki.warframe.com/w/Affinity');
+  }
+  info.push('Routes are ranked by suitability, unlocks and reward overlap, not measured XP/min. Check actual access, survivability and squad availability in Navigation.');
+ }
+
  function renderGoal(){
   const g=pModel(),steps=[],info=[];
   let controls=select('goalMode','Session goal',goals,ui.goal);
@@ -450,12 +491,19 @@ if(state.page==='overview')render();
    else steps.push(step('No matching fissure confirmed','Refresh live missions or change relic tier / variant. Do not run an unrelated tier for a specific relic.'));
    steps.push(step('Refine for the intended reward','For a rare target, use Radiant relics and preferably a matching four-player radshare. For a common target, intact relics are generally better. Collect ten Reactant before extraction.'));
    info.push('Relic quantities, Void Traces, squad availability and real completion times are not tracked. Capture / Exterminate are ranked as short-run candidates, not measured fastest routes. '+source('https://wiki.warframe.com/w/Void_Relic','Relic reference'));
-  }else if(ui.goal==='mastery'){
-   const ready=gear().filter(r=>ownedEquip(r)&&!masteredEquip(r)).map(r=>({r,rank:typeof mRankInfo==='function'?mRankInfo(r):{cap:30,rate:100}})).sort((a,b)=>b.rank.rate-a.rank.rate||a.r.name.localeCompare(b.r.name));
-   info.push(ready.length+' owned, unmastered items recorded. XP remaining per item is not assumed from ownership.');
-   for(const {r,rank} of ready.slice(0,8))steps.push(step(r.name,'Level for mastery · '+rank.rate+' XP per first-time rank (up to applicable cap).',edit(r)));
-   steps.push(step('Combine equipment XP with your chosen farm','Bring unmastered gear only if it will not compromise your mission. Public affinity farming, e.g. Sanctuary Onslaught for appropriate gear, is an alternative.'));
-   steps.push(step('Check unfinished Intrinsics','Each newly earned Intrinsic rank gives mastery XP; review your Railjack and Drifter ranks.',openProgress('intrinsics')));
+  }else if(['mastery','necramech','levelgear'].includes(ui.goal)){
+   const categories=[...new Set(['Warframes','Necramechs','Primary','Secondary','Melee','Companions','Arch-Guns','Arch-Melees','Vehicles','Amps','Adversary Weapons','Robotic Weapons','Modular',...gear().map(r=>r.category)])].filter(Boolean);
+   const category=ui.goal==='necramech'?'Necramechs':ui.levelCategory;
+   if(ui.goal!=='necramech')controls+=select('goalLevelCategory','Equipment type',categories,category);
+   const available=gear().filter(r=>r.category===category&&levelEligible(r)).sort((a,b)=>a.name.localeCompare(b.name));
+   const selected=available.find(r=>ek(r.category,r.name)===ui.levelItem);
+   controls+=select('goalLevelItem','Equipment (optional)',[['','Any '+category],...available.map(r=>[ek(r.category,r.name),r.name])],selected?ui.levelItem:'');
+   controls+=select('goalLevelDifficulty','Combat readiness',['Comfortable / solo','Strong build / squad'],ui.levelDifficulty)+select('goalLevelObjective','Session emphasis',['Rank + extra rewards','Rank only'],ui.levelObjective);
+   if(selected){const rank=mRankInfo(selected);info.push(esc(selected.name)+' · '+(known(selected.masteryEarnedRank)?'highest earned rank '+esc(selected.masteryEarnedRank)+' / '+rank.cap:selected.mastered?'rank 30+; highest rank unverified':'highest earned rank unknown')+' · '+rank.rate+' mastery XP per new rank.');}
+   else info.push(available.length+' owned '+esc(category)+' with remaining or unverified rank potential.');
+   levelRoutes(category,g,steps,info);
+   if(available.length)for(const r of (selected?[selected]:available.slice(0,8)))steps.push(step('Equipment: '+r.name,'Review saved rank / inventory. Record your highest earned rank in Mastery Audit.',edit(r)));
+   if(ui.goal==='mastery')steps.push(step('Review Intrinsics','Each newly earned Intrinsic rank grants mastery XP.',openProgress('intrinsics')));
   }else if(ui.goal==='mods'){
    const tasks=tasksData().filter(t=>t.id?.startsWith('mod:')||t.id?.startsWith('arc:'));
    for(const t of tasks.slice(0,12))steps.push(step(t.name,t.detail+' · check the drop source and rotation before farming.',button('Open','open-task','data-key="'+enc(t.id)+'"','small')));
@@ -470,13 +518,13 @@ if(state.page==='overview')render();
    steps.push(step('Pick a session goal','Choose a system above to get an ordered route instead of the general task backlog.'));
    steps.push(step('Level owned gear or finish a partially built item','Your existing personal priorities below are retained.'));
   }
-  const liveNeeded=['prime','railjack'].includes(ui.goal);
+  const liveNeeded=['prime','railjack','necramech'].includes(ui.goal)||(['mastery','levelgear'].includes(ui.goal)&&ui.levelCategory==='Necramechs');
   if(liveNeeded&&!W_DASH.attempted&&!W_DASH.loading)Promise.resolve().then(()=>{if(state.page==='planner')wFetch();});
   const fresh=liveNeeded?'<div class="editline"><span class="muted tiny">'+esc(W_DASH.loading?'Refreshing live world…':W_DASH.error|| (W_DASH.fetchedAt?'Live snapshot: '+new Date(W_DASH.fetchedAt).toLocaleString():'Live feed not yet loaded'))+'</span><button class="button small" data-goal-refresh>Refresh live missions</button></div>':'';
   return '<section class="panel" style="margin:12px 0"><h2>Goal-driven recommendations</h2><p class="muted tiny">Choose what you want to achieve this session. Routes use your saved progress and available mission data; verify unrecorded prerequisites in-game.</p><div class="formgrid">'+controls+'</div>'+fresh+(!state.profileImported?'<p class="notice">Import your private profile for personalised progress. Recommendations are provisional.</p>':'')+info.map(x=>'<p class="helptext">'+x+'</p>').join('')+'<h3>Recommended route (in priority order)</h3>'+steps.map((x,i)=>'<div class="task" style="align-items:flex-start"><span class="pill '+(i===0?'gold':'')+'">'+(i+1)+'</span><div style="flex:1;min-width:0"><div class="taskname">'+esc(x.name)+'</div><div class="tasksublabel" style="white-space:normal">'+esc(x.detail)+'</div></div>'+x.extra+'</div>').join('')+'</section>';
  }
  const original=plannerPage;
- plannerPage=function(){const base=original();const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
- document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail'}[e.target.id];if(!k)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
- document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops]');if(!el)return;if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
+ plannerPage=function(){let base=original();base=base.replace(/(<button\b[^>]*data-action="open-task"[^>]*data-key="([^"]+)"[^>]*>Open<\/button>)/g,(full,tag,key)=>{try{const id=dec(key);if(!id.startsWith('level:'))return full;const r=gear().find(x=>ek(x.category,x.name)===id.slice(6));return r?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+levelLink(r)+full+'</div>':full;}catch(e){return full;}});const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
+ document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail',goalLevelCategory:'levelCategory',goalLevelItem:'levelItem',goalLevelDifficulty:'levelDifficulty',goalLevelObjective:'levelObjective'}[e.target.id];if(!k)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
+ document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops],[data-goal-level]');if(!el)return;if(el.hasAttribute('data-goal-level')){const r=gear().find(x=>ek(x.category,x.name)===el.dataset.goalLevel);if(!r)return;ui.goal=r.category==='Necramechs'?'necramech':'levelgear';ui.levelCategory=r.category;ui.levelItem=el.dataset.goalLevel;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}go('planner');return;}if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
 })();
