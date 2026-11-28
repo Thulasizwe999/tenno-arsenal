@@ -349,7 +349,7 @@ if(state.page==='overview')render();
  function rewardNames(target,c){
   const n=norm(c.name),item=norm(target.r.name);
   const full=n.startsWith(item+' ')?n:item+' '+n;
-  return new Set([full,full.replace(/ blueprint$/,'')]);
+  return new Set([full,full.replace(/ blueprint$/,''),...(!full.endsWith(' blueprint')?[full+' blueprint']:[])]);
  }
  function primeRelics(target){
   const matches=[];
