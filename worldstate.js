@@ -276,8 +276,8 @@ if(state.page==='overview')render();
 
 /* Goal-driven session planner: local preferences, existing personal data, live feed. */
 (function installGoalPlanner(){
- const goals=[['general','General priorities'],['helminth','Rank up Helminth'],['railjack','Progress Railjack'],['prime','Farm Prime parts'],['mastery','Gain mastery XP'],['necramech','Rank up Necramech'],['levelgear','Rank up equipment'],['mods','Farm mods / Arcanes'],['drifter','Progress Drifter Intrinsics']];
- const ui={goal:'general',mode:'Normal',tier:'All',prime:'',rail:'Unlock regions / nodes',levelCategory:'Warframes',levelItem:'',levelDifficulty:'Comfortable / solo',levelObjective:'Rank + extra rewards'};
+ const goals=[['general','General priorities'],['helminth','Rank up Helminth'],['railjack','Progress Railjack'],['prime','Farm Prime parts'],['mastery','Gain mastery XP'],['necramech','Rank up Necramech'],['levelgear','Rank up equipment'],['mods','Farm mods / Arcanes'],['farmany','Farm any item / part / resource'],['drifter','Progress Drifter Intrinsics']];
+ const ui={goal:'general',mode:'Normal',tier:'All',prime:'',rail:'Unlock regions / nodes',levelCategory:'Warframes',levelItem:'',levelDifficulty:'Comfortable / solo',levelObjective:'Rank + extra rewards',farmTarget:'',farmMode:'Balanced routes'};
  try{const saved=JSON.parse(localStorage.getItem('tenno-session-goal-v1')||'{}');for(const k of Object.keys(ui))if(typeof saved[k]==='string')ui[k]=saved[k];}catch(e){}
  if(!goals.some(x=>x[0]===ui.goal))ui.goal='general';
  const known=x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(Number(x));
@@ -445,6 +445,152 @@ if(state.page==='overview')render();
   info.push('Routes are ranked by suitability, unlocks and reward overlap, not measured XP/min. Check actual access, survivability and squad availability in Navigation.');
  }
 
+
+ const farmFiles=['missionRewards','modLocations','blueprintLocations','resourceByAvatar','miscItems','syndicates','cetusBountyRewards','solarisBountyRewards','deimosRewards','zarimanRewards','entratiLabRewards','hexRewards','keyRewards','sortieRewards','transientRewards','relics'];
+ const farmDB={data:{},errors:[],loading:false,attempted:false,at:null,index:null};
+ const wiki=n=>'https://wiki.warframe.com/w/Special:Search?search='+encodeURIComponent(n);
+ const itemKey=n=>norm(n).replace(/^\d[\d,.]*\s*(?:x\s*)?/i,'').replace(/\s+x\s*\d[\d,.]*$/i,'').replace(/[’]/g,"'");
+ const itemAliases=n=>[...new Set([itemKey(n),itemKey(n).replace(/ blueprint$/,''),itemKey(n)+' blueprint'])];
+ const farmSave=()=>{try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(e){}};
+ async function farmLoad(force=false){
+  if(farmDB.loading)return;
+  farmDB.loading=true;farmDB.attempted=true;farmDB.errors=[];let jobs=farmFiles.filter(n=>force||!farmDB.data[n]);
+  if(dropData.missions&&!force){farmDB.data.missionRewards=dropData.missions;jobs=jobs.filter(n=>n!=='missionRewards');}
+  if(dropData.relics&&!force){farmDB.data.relics=dropData.relics;jobs=jobs.filter(n=>n!=='relics');}
+  async function worker(){while(jobs.length){const name=jobs.shift();try{const raw=await loadDropFile(name),v=raw[name]??raw;if(!v||typeof v!=='object'||!Object.keys(v).length)throw Error('Empty table');farmDB.data[name]=v;}catch(e){farmDB.errors.push(name);}}}
+  await Promise.all([worker(),worker(),worker(),worker()]);farmDB.index=null;farmDB.loading=false;farmDB.at=new Date().toISOString();if(state.page==='planner')render();
+ }
+ const enemySites=[
+ [/necramech \(tier [123]\)|enemy necramech|^necramech$/i,'Deimos — Isolation Vault bounties','Talk to Mother in the Necralisk or Cambion Drift; defeat the appropriate vault-tier Necramech. Check the tier.'],
+ [/tusk thumper|narmer thumper/i,'Earth — Plains of Eidolon','Search the Plains for Thumpers during daytime; higher variants depend on bounty level.'],
+ [/jackal/i,'Fossa — Venus','Assassination: defeat Jackal; verify variant, since Jackal also appears elsewhere.'],
+ [/^the sergeant$/i,'Iliad — Phobos','Assassination: defeat The Sergeant.'],
+ [/lieutenant lech kril/i,'War — Mars / Exta — Ceres','Assassination: target Lech Kril; confirm the exact boss variant.'],
+ [/^lephantis$/i,'Magnacidium — Deimos','Assassination: defeat Lephantis.'],
+ [/^alad v$/i,'Themisto — Jupiter','Assassination: defeat Alad V.'],
+ [/^tyl regor$/i,'Titania — Uranus','Assassination: defeat Tyl Regor.'],
+ [/^sargas ruk$/i,'Tethys — Saturn','Assassination: defeat Sargas Ruk.'],
+ [/^zealoid prelate$/i,'Exequias — Deimos','Assassination: defeat Zealoid Prelate.'],
+ [/^hyena pack$/i,'Psamathe — Neptune','Assassination: defeat the Hyena Pack.'],
+ [/^corrupted vor$/i,'Void — high-level missions','Corrupted Vor may spawn in level 40+ Void missions; not guaranteed at mission start.']
+ ];
+ const resourceSites={
+ 'orokin cell':[['Gabii — Ceres','Dark Sector Survival; loot containers and enemies. Also earn affinity.'],['Titan — Saturn','Survival; also useful for affinity and regional resources.']],
+ 'plastids':[['Piscinas — Saturn','Dark Sector Survival; also farm Nano Spores and Orokin Cells.']],
+ 'nano spores':[['Piscinas — Saturn','Dark Sector Survival; also collect Plastids.'],['Hyf — Deimos','Defense; lower-level alternative.']],
+ 'neural sensors':[['Elara — Jupiter','Survival; loot enemies and containers; also Hexenon and Oxium from appropriate enemies.']],
+ 'hexenon':[['Elara — Jupiter','Survival; also regional resources and affinity.']],
+ 'oxium':[['Elara — Jupiter','Survival; kill Oxium Ospreys before they self-destruct.']],
+ };
+ function rewardTime(mode,rotation,node){
+  const m=norm(mode),rot=String(rotation).toUpperCase(),cycle={A:1,B:3,C:4}[rot];
+  if(/cache|extra|bonus/i.test(m+' '+node))return {min:null,how:'Complete the exact cache/bonus requirement; not an ordinary mission-clear roll.'};
+  if(/survival/.test(m)&&cycle)return {min:5*cycle,how:'First '+rot+' reward after '+(5*cycle)+' min in the usual AABC cycle; verify special variants.'};
+  if(/defen[cs]e/.test(m)&&cycle&&!/mirror|mobile|void armageddon|railjack|tyana/.test(m+' '+node))return {min:null,how:'Reach the '+rot+' reward rotation; wave length depends on the mission variant.'};
+  if(/spy/.test(m)&&cycle)return {min:null,how:'Secure '+cycle+' data vault'+(cycle===1?'':'s')+' only if rotation mapping matches; check vault requirements.'};
+  if(/capture/.test(m))return {min:3,how:'Complete Capture and extract. Rough 3-minute planning assumption.'};
+  if(/exterminate|assassination/.test(m))return {min:5,how:'Complete the objective and extract. Rough 5-minute planning assumption.'};
+  return {min:null,how:rot==='COMPLETION'?'Complete the stated mission objective.':'Reach the listed reward rotation or stage.'};
+ }
+ function buildFarmIndex(){
+  if(farmDB.index)return farmDB.index;const index=new Map();
+  function add(name,row){if(!name||!String(name).trim())return;const k=itemKey(name);if(!k)return;if(!index.has(k))index.set(k,{name:String(name).replace(/^\d[\d,.]*\s*(?:x\s*)?/i,''),rows:[]});index.get(k).rows.push(row);}
+  function chance(v){return known(v)&&Number(v)>0&&Number(v)<=100?Number(v):null;}
+  function rewardRows(groups,cb){if(Array.isArray(groups))groups.forEach(x=>cb(x,'Completion'));else for(const [rot,items] of Object.entries(groups||{}))if(Array.isArray(items))items.forEach(x=>cb(x,rot));}
+  for(const [planet,nodes] of Object.entries(farmDB.data.missionRewards||{}))for(const [node,mission] of Object.entries(nodes||{})){
+   if(!mission?.rewards)continue;
+   rewardRows(mission.rewards,(x,rotation)=>add(x.itemName,{kind:'mission',name:node+' — '+planet,mode:mission.gameMode||'Mission',rotation,chance:chance(x.chance),event:!!mission.isEvent,node,planet,source:'missionRewards'}));
+  }
+  for(const row of farmDB.data.modLocations||[])for(const e of row.enemies||[])add(row.modName,{kind:'enemy',name:e.enemyName,chance:chance(e.chance)===null||chance(e.enemyModDropChance)===null?null:Number(e.chance)*Number(e.enemyModDropChance)/100,source:'modLocations'});
+  for(const row of farmDB.data.blueprintLocations||[])for(const e of row.enemies||[])add(row.blueprintName||row.itemName,{kind:'enemy',name:e.enemyName,chance:chance(e.chance)===null||chance(e.enemyItemDropChance)===null?null:Number(e.chance)*Number(e.enemyItemDropChance)/100,source:'blueprintLocations'});
+  for(const row of farmDB.data.miscItems||[])for(const x of row.items||[])add(x.itemName,{kind:'enemy',name:row.enemyName,chance:null,source:'miscItems'});
+  for(const row of farmDB.data.resourceByAvatar||[])for(const x of row.items||[])add(x.item||x.itemName,{kind:'resource',name:row.source,chance:chance(x.chance),source:'resourceByAvatar'});
+  for(const [name,items] of Object.entries(farmDB.data.syndicates||{}))if(Array.isArray(items))for(const x of items)add(x.item,{kind:'vendor',name:x.place||name,standing:x.standing,syndicate:name,source:'syndicates'});
+  const labels={cetusBountyRewards:'Cetus — Plains of Eidolon',solarisBountyRewards:'Fortuna — Orb Vallis',deimosRewards:'Necralisk — Cambion Drift',zarimanRewards:'Chrysalith — Zariman',entratiLabRewards:'Sanctum Anatomica — Deimos',hexRewards:'Höllvania — Hex',keyRewards:'Key / special mission',sortieRewards:'Sortie',transientRewards:'Limited-time / special activity'};
+  for(const [file,label] of Object.entries(labels)){
+   const entries=farmDB.data[file];if(!entries)continue;
+   const visit=(v,path=[],depth=0)=>{
+    if(!v||typeof v!=='object'||depth>7)return;
+    if(v.itemName&&known(v.chance)){add(v.itemName,{kind:'activity',name:label,mode:path.filter(Boolean).join(' · '),rotation:v.stage||'',chance:chance(v.chance),source:file});return;}
+    if(Array.isArray(v)){for(const x of v)visit(x,path,depth+1);return;}
+    const descriptor=v.bountyLevel||v.missionName||v.location||v.name||v.title||v.gameMode||'';
+    for(const [k,x] of Object.entries(v))if(x&&typeof x==='object')visit(x,[...path,...(descriptor?[String(descriptor)]:[]),...(!['rewards','items','drops','_id'].includes(k)&&!descriptor&&k!=='0'?[k]:/^[ABC]$/.test(k)?['Rotation '+k]:[])],depth+1);
+   };visit(entries);
+  }
+  for(const rel of farmDB.data.relics||[])for(const x of rel.rewards||[])add(x.itemName,{kind:'relic',name:relicLabel(rel),mode:rel.state,chance:chance(x.chance),source:'relics'});
+  farmDB.index=index;return index;
+ }
+ function farmCatalogue(){
+  const index=buildFarmIndex(),all=new Map([...index].map(([k,v])=>[k,v.name]));
+  for(const r of [...gear(),...allMods(),...allArcanes()])if(r.name)all.set(itemKey(r.name),r.name);
+  for(const r of gear())for(const x of r.components||[]){if(!x.name)continue;const n=/^(blueprint|chassis|systems|neuroptics|barrel|receiver|stock|handle|blade|hilt|grip|link|string|limb|ornament|gauntlet|carapace|engine|pod)( blueprint)?$/i.test(x.name)?r.name+' '+x.name:x.name;all.set(itemKey(n),n);}
+  return all;
+ }
+ function acquisitionRows(name,g){
+  const idx=buildFarmIndex(),rows=[];for(const k of itemAliases(name))rows.push(...(idx.get(k)?.rows||[]));
+  const catalogue=[...gear(),...allMods(),...allArcanes()].filter(x=>itemKey(x.name)===itemKey(name));
+  for(const item of catalogue)for(const d of item.drops||[])if(d.location)rows.push({kind:'catalogue',name:d.location,chance:null,source:'Warframe Items'});
+  for(const [n,detail] of resourceSites[itemKey(name)]||[])rows.push({kind:'guide',name:n,detail,source:'Wiki resource guide'});
+  const seen=new Set(),scored=[];
+  for(const x of rows){
+   const id=[x.kind,x.name,x.mode,x.rotation,x.chance,x.standing].join('|');if(seen.has(id))continue;seen.add(id);
+   let label=x.name,detail='',score=0,time=null;
+   if(x.kind==='mission'){
+    const t=rewardTime(x.mode,x.rotation,x.node);time=t.min;
+    const node=pChartNodes(g,'origin').find(n=>norm(n.name)===norm(x.node)&&norm(n.planet)===norm(x.planet));
+    const status=node?g.nodes.normal[node.id]:null;
+    if(x.event)score-=1000;if(status==='locked')score-=1000;
+    detail=x.mode+' · '+x.rotation+' · '+(x.chance===null?'probability unknown':x.chance.toFixed(2)+'% per listed reward roll')+' · '+t.how+(x.event?' Limited-time; check active event.':'')+(status==='locked'?' Recorded locked.':status==='completed'?' Node recorded complete.':' Confirm node access.');
+    score+=40+(x.chance??0)*.5+(time?Math.min(30,(x.chance??0)/time):0);
+   }else if(x.kind==='activity'){detail=[x.mode,x.rotation,x.chance===null?'probability unknown':x.chance.toFixed(2)+'% per listed reward roll','Check current bounty rotation and unlocks.'].filter(Boolean).join(' · ');score+=35+(x.chance??0)*.5;}
+   else if(x.kind==='vendor'){const current=g.syndicates?.members?.[x.syndicate]?.standing;const enough=known(current)&&known(x.standing)&&Number(current)>=Number(x.standing);detail=(known(x.standing)?Number(x.standing).toLocaleString()+' standing':'Cost not listed')+(known(current)?' · recorded balance '+Number(current).toLocaleString():' · standing unknown')+' · Verify required rank and vendor access.';score+=enough?105:40;}
+   else if(x.kind==='enemy'||x.kind==='resource'){const site=enemySites.find(a=>a[0].test(x.name));label=site?site[1]+' — '+x.name:x.name;detail=(x.kind==='enemy'?'Target this enemy':'Loot this enemy / container')+' · '+(x.chance===null?'exact overall rate unverified':x.chance.toFixed(3)+'% '+(x.kind==='enemy'?'per kill, before boosters':'per listed source roll'))+' · '+(site?site[2]:'Open the Wiki for spawn locations; no verified node mapping in the data.');score+=site?36:10;score+=Math.min(25,x.chance??0);}
+   else if(x.kind==='relic'){detail=x.mode+' · '+(x.chance===null?'probability unknown':x.chance.toFixed(2)+'% per opened relic')+' · Check relic ownership and use matching active fissure.';score+=42+(x.chance??0)*.5;}
+   else if(x.kind==='guide'){detail=x.detail+' · Regional loot, not a guaranteed mission reward.';score+=80;}
+   else{detail='Catalogue acquisition location; probability and eligibility not verified.';score+=30;}
+   if(ui.farmMode==='Highest published chance')score=(x.chance??-1)+(x.event?-1000:0)+(detail.includes('Recorded locked')?-1000:0);
+   if(ui.farmMode==='Short repeatable missions'&&time)score+=25;
+   scored.push({...x,label,detail,score});
+  }
+  return scored.sort((a,b)=>b.score-a.score||a.label.localeCompare(b.label));
+ }
+ function farmPanel(g,steps,info,modOnly){
+  const pinned=tasksData().filter(t=>modOnly?/^(mod|arc):/.test(t.id||''):/^(mod|arc|farm|craft):/.test(t.id||''));
+  const options=[...new Set(pinned.map(t=>t.name))];
+  let controls='<label>Search for any target (exact name or part)<input class="field" id="goalFarmTarget" list="goalFarmNames" placeholder="Type a mod, Warframe, component or resource" value="'+esc(ui.farmTarget)+'"></label><button class="button gold" data-goal-farm-search>Find farming routes</button>';
+  const all=farmCatalogue(),query=itemKey(ui.farmTarget);
+  if(query){const matches=[...all].filter(([k])=>k.includes(query)).slice(0,60);controls+='<datalist id="goalFarmNames">'+matches.map(([,n])=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist>';}else controls+='<datalist id="goalFarmNames"></datalist>';
+  if(options.length)controls+=select('goalFarmPinned','Pinned / outstanding targets',[['','Choose a saved target'],...options],options.includes(ui.farmTarget)?ui.farmTarget:'');
+  controls+=select('goalFarmMode','Ranking preference',['Balanced routes','Highest published chance','Short repeatable missions'],ui.farmMode);
+  if(!farmDB.attempted&&!farmDB.loading)Promise.resolve().then(()=>{if(state.page==='planner')farmLoad();});
+  info.push('Farming database · '+Object.keys(farmDB.data).length+' / '+farmFiles.length+' tables loaded'+(farmDB.loading?' · loading…':farmDB.errors.length?' · '+esc(farmDB.errors.join(', '))+' unavailable':'')+' · <button class="button small" data-goal-farm-refresh>Refresh farming data</button> · '+source('https://github.com/WFCD/warframe-drop-data','Published drop tables'));
+  if(!query){steps.push(step('Select a farming target','Type an item or choose one of your saved targets. The planner will search across mission rewards, vendors, bounties, enemies and relics.'));return controls;}
+  const target=all.get(query)||ui.farmTarget.trim(),equipment=gear().find(x=>itemKey(x.name)===query),mod=allMods().find(x=>itemKey(x.name)===query);
+  if(mod)info.push(esc(mod.name)+' · '+modQty(mod)+' owned copies recorded.');
+  const targets=[];
+  if(equipment&&equipment.components?.length){
+   const p=personalEquipment(equipment)||{},held=p.parts||{};
+   info.push(esc(equipment.name)+' · '+(p.owned?'owned':'not recorded owned')+' · component flags indicate recorded holdings, not all inventory quantities.');
+   for(const part of equipment.components){if(!part.name)continue;
+    const local=/^(blueprint|chassis|systems|neuroptics|barrel|receiver|stock|handle|blade|hilt|grip|link|string|limb|ornament|gauntlet|carapace|engine|pod)( blueprint)?$/i.test(part.name);
+    const name=local?equipment.name+' '+part.name:part.name;
+    if(Object.entries(held).some(([k,v])=>v&&[itemKey(name),itemKey(part.name)].includes(itemKey(k)))||(/blueprint$/i.test(part.name)&&/^blueprint$/i.test(part.name)&&p.blueprint))continue;
+    targets.push({name,count:part.itemCount||1});}
+   if(!targets.length)steps.push(step('All catalogue components recorded','Confirm quantities, ingredient requirements and Foundry crafting status.'));
+  }else targets.push({name:target,count:1});
+  for(const t of targets.slice(0,20)){
+   const rows=acquisitionRows(t.name,g);
+   steps.push(step('Target: '+t.name,(equipment?'Recipe entry · '+t.count+' required in catalogue; check actual stock. ':'')+(rows.length?rows.length+' matching acquisition records.':'No exact acquisition match in loaded sources.'),source(wiki(t.name),'Wiki acquisition')));
+   const groups=new Set();let shown=0;
+   for(const x of rows){const k=x.kind+'|'+x.label;if(groups.has(k))continue;groups.add(k);steps.push(step(x.label,x.detail,source(wiki(x.kind==='enemy'||x.kind==='resource'?x.name:t.name),'Wiki')));if(++shown>=(targets.length>1?3:12))break;}
+   if(!rows.length&&!farmDB.loading)steps.push(step('Check alternate acquisition','Search the Wiki for quest rewards, Market / Dojo blueprints, shops, enemy spawn locations or other non-drop-table mechanics. No invented mission.',source(wiki(t.name),'Search Wiki')));
+   const relicRows=rows.filter(x=>x.kind==='relic');if(relicRows.length)steps.push(step('Find matching fissures','For targeted Prime parts use the Prime planner to match active fissures and relic acquisition.'));
+  }
+  if(!equipment&&!all.has(query)){const close=[...all].filter(([k])=>k.includes(query)).slice(0,15);for(const [,n] of close)steps.push(step('Matching item: '+n,'Select this exact name to find its acquisition sources.','<button class="button small" data-goal-farm-item="'+esc(n)+'">Select</button>'));}
+  info.push('Ranking compares source type, known access and rough short-mission estimates. Drop probabilities per kill and per reward roll are not directly comparable; not a measured items/minute optimiser.');
+  return controls;
+ }
+
  function renderGoal(){
   const g=pModel(),steps=[],info=[];
   let controls=select('goalMode','Session goal',goals,ui.goal);
@@ -504,11 +650,8 @@ if(state.page==='overview')render();
    levelRoutes(category,g,steps,info);
    if(available.length)for(const r of (selected?[selected]:available.slice(0,8)))steps.push(step('Equipment: '+r.name,'Review saved rank / inventory. Record your highest earned rank in Mastery Audit.',edit(r)));
    if(ui.goal==='mastery')steps.push(step('Review Intrinsics','Each newly earned Intrinsic rank grants mastery XP.',openProgress('intrinsics')));
-  }else if(ui.goal==='mods'){
-   const tasks=tasksData().filter(t=>t.id?.startsWith('mod:')||t.id?.startsWith('arc:'));
-   for(const t of tasks.slice(0,12))steps.push(step(t.name,t.detail+' · check the drop source and rotation before farming.',button('Open','open-task','data-key="'+enc(t.id)+'"','small')));
-   if(!tasks.length)steps.push(step('Pin the missing mods or Arcanes you want','Mark a farming target in your collection; it will appear here on your next visit.'));
-   info.push('Drop probabilities and overlapping reward tables are not yet scored.');
+  }else if(['mods','farmany'].includes(ui.goal)){
+   controls+=farmPanel(g,steps,info,ui.goal==='mods');
   }else if(ui.goal==='drifter'){
    const ranks=g.intrinsics.Drifter;info.push(P_INTR.Drifter.map(n=>n+': '+(known(ranks[n])?ranks[n]:'unknown')).join(' · '));
    steps.push(step('Review your Drifter ranks and unspent points','Spend earned points on the unlocks you need. Unknown ranks are not counted as missing.',openProgress('intrinsics')));
@@ -521,10 +664,11 @@ if(state.page==='overview')render();
   const liveNeeded=['prime','railjack','necramech'].includes(ui.goal)||(['mastery','levelgear'].includes(ui.goal)&&ui.levelCategory==='Necramechs');
   if(liveNeeded&&!W_DASH.attempted&&!W_DASH.loading)Promise.resolve().then(()=>{if(state.page==='planner')wFetch();});
   const fresh=liveNeeded?'<div class="editline"><span class="muted tiny">'+esc(W_DASH.loading?'Refreshing live world…':W_DASH.error|| (W_DASH.fetchedAt?'Live snapshot: '+new Date(W_DASH.fetchedAt).toLocaleString():'Live feed not yet loaded'))+'</span><button class="button small" data-goal-refresh>Refresh live missions</button></div>':'';
-  return '<section class="panel" style="margin:12px 0"><h2>Goal-driven recommendations</h2><p class="muted tiny">Choose what you want to achieve this session. Routes use your saved progress and available mission data; verify unrecorded prerequisites in-game.</p><div class="formgrid">'+controls+'</div>'+fresh+(!state.profileImported?'<p class="notice">Import your private profile for personalised progress. Recommendations are provisional.</p>':'')+info.map(x=>'<p class="helptext">'+x+'</p>').join('')+'<h3>Recommended route (in priority order)</h3>'+steps.map((x,i)=>'<div class="task" style="align-items:flex-start"><span class="pill '+(i===0?'gold':'')+'">'+(i+1)+'</span><div style="flex:1;min-width:0"><div class="taskname">'+esc(x.name)+'</div><div class="tasksublabel" style="white-space:normal">'+esc(x.detail)+'</div></div>'+x.extra+'</div>').join('')+'</section>';
+  return '<section class="panel" style="margin:12px 0"><h2>Goal-driven recommendations <small class="muted">· Farming engine v2</small></h2><p class="muted tiny">Choose what you want to achieve this session. Routes use your saved progress and available mission data; verify unrecorded prerequisites in-game.</p><div class="formgrid">'+controls+'</div>'+fresh+(!state.profileImported?'<p class="notice">Import your private profile for personalised progress. Recommendations are provisional.</p>':'')+info.map(x=>'<p class="helptext">'+x+'</p>').join('')+'<h3>Recommended route (in priority order)</h3>'+steps.map((x,i)=>'<div class="task" style="align-items:flex-start"><span class="pill '+(i===0?'gold':'')+'">'+(i+1)+'</span><div style="flex:1;min-width:0"><div class="taskname">'+esc(x.name)+'</div><div class="tasksublabel" style="white-space:normal">'+esc(x.detail)+'</div></div>'+x.extra+'</div>').join('')+'</section>';
  }
+ document.addEventListener('keydown',e=>{if(e.target.id==='goalFarmTarget'&&e.key==='Enter'){e.preventDefault();ui.farmTarget=e.target.value;farmSave();render();}});
  const original=plannerPage;
  plannerPage=function(){let base=original();base=base.replace(/(<button\b[^>]*data-action="open-task"[^>]*data-key="([^"]+)"[^>]*>Open<\/button>)/g,(full,tag,key)=>{try{const id=dec(key);if(!id.startsWith('level:'))return full;const r=gear().find(x=>ek(x.category,x.name)===id.slice(6));return r?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+levelLink(r)+full+'</div>':full;}catch(e){return full;}});const marker='<div class="cards">';const i=base.indexOf(marker);return i>=0?base.slice(0,i)+renderGoal()+base.slice(i):renderGoal()+base;};
- document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail',goalLevelCategory:'levelCategory',goalLevelItem:'levelItem',goalLevelDifficulty:'levelDifficulty',goalLevelObjective:'levelObjective'}[e.target.id];if(!k)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
- document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops],[data-goal-level]');if(!el)return;if(el.hasAttribute('data-goal-level')){const r=gear().find(x=>ek(x.category,x.name)===el.dataset.goalLevel);if(!r)return;ui.goal=r.category==='Necramechs'?'necramech':'levelgear';ui.levelCategory=r.category;ui.levelItem=el.dataset.goalLevel;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}go('planner');return;}if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
+ document.addEventListener('change',e=>{const k={goalMode:'goal',goalTier:'tier',goalVariant:'mode',goalPrime:'prime',goalRail:'rail',goalLevelCategory:'levelCategory',goalLevelItem:'levelItem',goalLevelDifficulty:'levelDifficulty',goalLevelObjective:'levelObjective',goalFarmMode:'farmMode',goalFarmPinned:'farmTarget',goalFarmTarget:'farmTarget'}[e.target.id];if(!k)return;if(e.target.id==='goalFarmPinned'&&!e.target.value)return;ui[k]=e.target.value;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}render();});
+ document.addEventListener('click',e=>{const el=e.target.closest('[data-goal-progress],[data-goal-refresh],[data-goal-drops],[data-goal-level],[data-goal-farm-search],[data-goal-farm-refresh],[data-goal-farm-item]');if(!el)return;if(el.hasAttribute('data-goal-farm-search')||el.hasAttribute('data-goal-farm-item')){ui.farmTarget=el.dataset.goalFarmItem||document.getElementById('goalFarmTarget')?.value||ui.farmTarget;farmSave();render();return;}if(el.hasAttribute('data-goal-farm-refresh')){farmLoad(true);render();return;}if(el.hasAttribute('data-goal-level')){const r=gear().find(x=>ek(x.category,x.name)===el.dataset.goalLevel);if(!r)return;ui.goal=r.category==='Necramechs'?'necramech':'levelgear';ui.levelCategory=r.category;ui.levelItem=el.dataset.goalLevel;try{localStorage.setItem('tenno-session-goal-v1',JSON.stringify(ui));}catch(err){}go('planner');return;}if(el.hasAttribute('data-goal-drops')){loadDropData();render();return;}if(el.hasAttribute('data-goal-refresh')){wFetch(true);render();return;}P_UI.tab=el.dataset.goalProgress;if(P_UI.tab==='star')P_UI.chart='railjack';go('progress');});
 })();
